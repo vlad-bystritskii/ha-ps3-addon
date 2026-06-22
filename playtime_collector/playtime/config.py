@@ -61,3 +61,9 @@ HTTP_PORT = int(get("http_port", "HTTP_PORT", 3301))
 data_dir = Path("/data") if Path("/data").is_dir() else Path(__file__).resolve().parent.parent / "data"
 DB_PATH = get("db_path", "DB_PATH", str(data_dir / "playtime.db"))
 ICON_DIR = get("icon_dir", "ICON_DIR", str(data_dir / "icons"))
+
+# Optional PSN NPSSO token to enrich trophies with global rarity (% of players).
+# Rarity is a PSN-server stat, not on the console; leave empty to disable.
+PSN_NPSSO = get("psn_npsso", "PSN_NPSSO", "")
+# How often to refresh PSN rarity, in seconds (changes slowly).
+RARITY_INTERVAL = int(get("rarity_interval", "RARITY_INTERVAL", 86400))

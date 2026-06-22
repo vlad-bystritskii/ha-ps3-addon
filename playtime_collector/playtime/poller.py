@@ -7,7 +7,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from . import config, db, trophies
+from . import config, db, psn, trophies
 from .ps3 import fetch_snapshot, list_profiles, resolve_username
 
 log = logging.getLogger("playtime.poller")
@@ -129,3 +129,32 @@ async def trophy_loop(client):
         except Exception:
             log.exception("trophy refresh failed")
         await asyncio.sleep(delay)
+
+
+async def refresh_rarity():
+    """Enrich every known trophy set with global PSN rarity (needs NPSSO; internet,
+    independent of the console). PSNAWP is sync, so run it in a thread."""
+    if not config.PSN_NPSSO:
+        return
+    npcommids = db.distinct_npcommids()
+    enriched = 0
+    for npcommid in npcommids:
+        try:
+            rarity = await asyncio.to_thread(psn.fetch_title_rarity, config.PSN_NPSSO, npcommid)
+        except Exception:
+            log.exception("PSN rarity fetch failed for %s", npcommid)
+            continue
+        if rarity:
+            db.upsert_rarity(npcommid, rarity)
+            enriched += 1
+    db.set_meta("rarity_refreshed_at", db.now_iso())
+    log.info("rarity refreshed for %s/%s sets", enriched, len(npcommids))
+
+
+async def rarity_loop():
+    while True:
+        try:
+            await refresh_rarity()
+        except Exception:
+            log.exception("rarity refresh failed")
+        await asyncio.sleep(config.RARITY_INTERVAL)

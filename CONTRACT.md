@@ -121,9 +121,14 @@ All trophies of one game.
   "hidden": false,
   "unlocked": true,
   "earnedAt": "2026-06-17T09:35:05+00:00",   // null if not earned
-  "icon": "/trophy-icon/Eplring/NPWR00660_00/21"
+  "icon": "/trophy-icon/Eplring/NPWR00660_00/21",
+  "earnedRate": 12.3,            // global PSN rarity %, null if psn_npsso unset
+  "rare": "RARE"                 // PSN rare tier, null if psn_npsso unset
 }
 ```
+
+`earnedRate` / `rare` are global PSN statistics, populated only when the add-on's
+`psn_npsso` option is set (fetched from the PSN API by `npcommid`, refreshed daily).
 
 ## GET /trophy-icon/{account}/{npcommid}/{trophy_id}
 Trophy icon as `image/png` (240×240). Token via header or `?token=`.

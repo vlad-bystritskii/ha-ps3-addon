@@ -11,7 +11,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from contextlib import asynccontextmanager
 
 from . import config, db, ps3, trophies
-from .poller import poll_loop, trophy_loop
+from .poller import poll_loop, trophy_loop, rarity_loop
 
 log = logging.getLogger("playtime.api")
 
@@ -20,7 +20,11 @@ log = logging.getLogger("playtime.api")
 async def lifespan(app):
     db.init_db()
     client = httpx.AsyncClient()
-    tasks = [asyncio.create_task(poll_loop(client)), asyncio.create_task(trophy_loop(client))]
+    tasks = [
+        asyncio.create_task(poll_loop(client)),
+        asyncio.create_task(trophy_loop(client)),
+        asyncio.create_task(rarity_loop()),
+    ]
     try:
         yield
     finally:
@@ -119,8 +123,13 @@ def trophies_list(
 
 
 def with_icons(account, npcommid, items):
+    """Add the icon URL and global PSN rarity (if fetched) to each trophy item."""
+    rarity = db.get_rarity(npcommid)
     for trophy in items:
         trophy["icon"] = "/trophy-icon/%s/%s/%d" % (account, npcommid, trophy["id"])
+        info = rarity.get(trophy["id"])
+        trophy["earnedRate"] = info["earned_rate"] if info else None
+        trophy["rare"] = info["rare"] if info else None
     return items
 
 

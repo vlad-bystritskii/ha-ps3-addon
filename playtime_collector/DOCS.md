@@ -14,6 +14,7 @@ JSON API. Nothing is installed on the console.
 | `account`         | `ps3`   | Fallback player label if a profile can't be resolved    |
 | `ignore_accounts` | `Vlad`  | Comma-separated profiles to skip (e.g. technical ones)  |
 | `auth_token`      | empty   | If set, required in the `X-Auth-Token` header           |
+| `psn_npsso`       | empty   | Optional PSN NPSSO token to enrich trophies with global rarity |
 
 Example:
 
@@ -24,7 +25,16 @@ trophy_interval: 1800
 account: "ps3"
 ignore_accounts: "Vlad"
 auth_token: "change-me-to-a-long-secret"
+psn_npsso: ""
 ```
+
+### Trophy rarity (optional)
+
+Rarity (the % of players who earned a trophy) is a global PSN statistic and is not
+stored on the console. Set `psn_npsso` to a PSN account's NPSSO token to fetch it
+per trophy and add `earnedRate` / `rare` to the trophy API. Get the token by
+logging into <https://www.playstation.com>, then opening
+<https://ca.account.sony.com/api/v1/ssocookie> and copying the `npsso` value.
 
 ## Usage
 

@@ -66,6 +66,14 @@ def init_db():
             earned_at  TEXT,
             PRIMARY KEY (platform, account, npcommid, trophy_id)
         );
+        CREATE TABLE IF NOT EXISTS trophy_rarity (
+            npcommid    TEXT NOT NULL,
+            trophy_id   INTEGER NOT NULL,
+            earned_rate REAL,
+            rare        TEXT,
+            updated_at  TEXT NOT NULL,
+            PRIMARY KEY (npcommid, trophy_id)
+        );
         """
     )
     conn.commit()
@@ -316,6 +324,35 @@ def query_trophy_items(platform, account, npcommid):
         }
         for r in rows
     ]
+
+
+def distinct_npcommids():
+    with lock:
+        rows = conn.execute("SELECT DISTINCT npcommid FROM trophies").fetchall()
+    return [r["npcommid"] for r in rows]
+
+
+def upsert_rarity(npcommid, rarity_map):
+    """rarity_map: {trophy_id: {"earned_rate": float|None, "rare": str|None}} (global PSN)."""
+    with lock:
+        for trophy_id, info in rarity_map.items():
+            conn.execute(
+                "INSERT INTO trophy_rarity (npcommid, trophy_id, earned_rate, rare, updated_at) "
+                "VALUES (?, ?, ?, ?, ?) "
+                "ON CONFLICT(npcommid, trophy_id) DO UPDATE SET "
+                "earned_rate=excluded.earned_rate, rare=excluded.rare, updated_at=excluded.updated_at",
+                (npcommid, int(trophy_id), info.get("earned_rate"), info.get("rare"), now_iso()),
+            )
+        conn.commit()
+
+
+def get_rarity(npcommid):
+    with lock:
+        rows = conn.execute(
+            "SELECT trophy_id, earned_rate, rare FROM trophy_rarity WHERE npcommid = ?",
+            (npcommid,),
+        ).fetchall()
+    return {r["trophy_id"]: {"earned_rate": r["earned_rate"], "rare": r["rare"]} for r in rows}
 
 
 def delete_sessions(account):

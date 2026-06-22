@@ -1,5 +1,5 @@
 name: Playtime Collector
-version: "0.1.0"
+version: "0.2.0"
 slug: playtime_collector
 description: Track PS3 (webMAN MOD) playtime and trophies and expose them over a JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addons
@@ -21,6 +21,7 @@ options:
   account: "ps3"
   ignore_accounts: "Vlad"
   auth_token: ""
+  psn_npsso: ""
 schema:
   ps3_host: str
   poll_interval: int
@@ -28,3 +29,4 @@ schema:
   account: str
   ignore_accounts: str
   auth_token: str
+  psn_npsso: "password?"
