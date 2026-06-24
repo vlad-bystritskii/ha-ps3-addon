@@ -15,6 +15,7 @@ from . import config, db, psn, trophies
 from .ps3 import (
     fetch_avatar, fetch_game_icon, fetch_snapshot, list_profiles, resolve_username,
 )
+from .titles import fix_title
 
 log = logging.getLogger("playtime")
 
@@ -239,12 +240,13 @@ async def ingest_sessions(client):
         account = await _resolve_account(client, s.get("account"))
         if account in config.IGNORE_ACCOUNTS:
             continue
+        title = fix_title(s.get("title"), s.get("titleId"))
         db.insert_closed_session(
-            config.PLATFORM, account, s.get("titleId", "?"), s.get("title"), seconds, db.now_iso())
+            config.PLATFORM, account, s.get("titleId", "?"), title, seconds, db.now_iso())
         await cache_game_icon(client, s.get("titleId"))
         inserted += 1
         log.info("⏹ %s — %s · %s (plugin)",
-                 account, s.get("title") or s.get("titleId"), fmt_dur(seconds))
+                 account, title or s.get("titleId"), fmt_dur(seconds))
 
     db.set_meta("plugin_offset", str(offset + cut + 1))
     if inserted:
@@ -272,7 +274,8 @@ async def ingest_current(client):
         db.clear_live_session(config.PLATFORM)
         return
     db.set_live_session(
-        config.PLATFORM, account, s.get("titleId", "?"), s.get("title"),
+        config.PLATFORM, account, s.get("titleId", "?"),
+        fix_title(s.get("title"), s.get("titleId")),
         int(s.get("seconds", 0)), db.now_iso())
 
 

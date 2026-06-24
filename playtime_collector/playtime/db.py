@@ -80,6 +80,27 @@ def init_db():
     set_meta_if_absent("tracked_since", now_iso())
 
 
+def apply_title_overrides(mapping):
+    """Retroactively rename already-stored titles to match the user's overrides.
+
+    `mapping` is {match: replacement}; a match is a title id (rewrites sessions by
+    title_id) or an exact title string (rewrites both sessions and trophy sets).
+    Idempotent — safe to run on every startup.
+    """
+    if not mapping:
+        return
+    with lock:
+        for match, replacement in mapping.items():
+            conn.execute(
+                "UPDATE sessions SET title = ? WHERE title_id = ? AND title IS NOT ?",
+                (replacement, match, replacement))
+            conn.execute(
+                "UPDATE sessions SET title = ? WHERE title = ?", (replacement, match))
+            conn.execute(
+                "UPDATE trophies SET title = ? WHERE title = ?", (replacement, match))
+        conn.commit()
+
+
 def set_meta(key, value):
     with lock:
         conn.execute(

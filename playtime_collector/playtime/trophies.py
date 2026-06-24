@@ -21,6 +21,8 @@ import re
 import struct
 from datetime import datetime, timedelta, timezone
 
+from .titles import fix_title
+
 import httpx
 
 PS3_EPOCH = datetime(1, 1, 1, tzinfo=timezone.utc)
@@ -59,7 +61,7 @@ def parse_tropconf(data):
         }
     return (
         npcommid.group(1) if npcommid else None,
-        title.group(1).strip() if title else None,
+        fix_title(title.group(1).strip()) if title else None,
         defs,
     )
 

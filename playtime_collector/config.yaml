@@ -1,5 +1,5 @@
 name: Playtime Collector
-version: "0.7.2"
+version: "0.8.0"
 slug: playtime_collector
 description: PS3 (webMAN MOD) playtime & trophies — web dashboard + JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addon
@@ -25,6 +25,29 @@ options:
   ignore_accounts: "Vlad"
   auth_token: ""
   psn_npsso: ""
+  title_overrides:
+    - "BCES01585=The Last of Us"
+    - "The Last of Us™=The Last of Us"
+    - "KILLZONE®=KILLZONE"
+    - "Uncharted: Drake's Fortune™=Uncharted: Drake's Fortune"
+    - "Syndicate™=Syndicate"
+    - "Far Cry® 3=Far Cry 3"
+    - "Resistance 2™=Resistance 2"
+    - "Resistance: Fall of Man™=Resistance: Fall of Man"
+    - "Twisted Metal™=Twisted Metal"
+    - "HEAVY RAIN™=HEAVY RAIN"
+    - "Uncharted 2: Among Thieves™=Uncharted 2: Among Thieves"
+    - "Dante's Inferno™=Dante's Inferno"
+    - "God of War™ III=God of War III"
+    - "God of War: Восхождение™=God of War: Восхождение"
+    - "The Saboteur™=The Saboteur"
+    - "Призы игры God of War™=Призы игры God of War"
+    - "Uncharted 3: Иллюзии Дрейка™=Uncharted 3: Иллюзии Дрейка"
+    - "ICO™=ICO"
+    - "Alice: Madness Returns™=Alice: Madness Returns"
+    - "LittleBigPlanet™3=LittleBigPlanet 3"
+    - "Tom Clancy's Splinter Cell® Blacklist™=Tom Clancy's Splinter Cell Blacklist"
+    - "Gran Turismo®6=Gran Turismo 6"
 schema:
   ps3_host: str
   playtime_source: "list(auto|webman|plugin)"
@@ -34,3 +57,5 @@ schema:
   ignore_accounts: str
   auth_token: str
   psn_npsso: "password?"
+  title_overrides:
+    - str

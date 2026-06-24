@@ -16,6 +16,7 @@ JSON API. Nothing is installed on the console.
 | `ignore_accounts` | `Vlad`  | Comma-separated profiles to skip (e.g. technical ones)  |
 | `auth_token`      | empty   | If set, required in the `X-Auth-Token` header           |
 | `psn_npsso`       | empty   | Optional PSN NPSSO token to enrich trophies with global rarity |
+| `title_overrides` | list    | Clean up ugly game names (see below)                    |
 
 Example:
 
@@ -27,7 +28,23 @@ account: "ps3"
 ignore_accounts: "Vlad"
 auth_token: "change-me-to-a-long-secret"
 psn_npsso: ""
+title_overrides:
+  - "BCES01585=The Last of Us"
+  - "Dante's Inferno™=Dante's Inferno"
 ```
+
+### Title overrides
+
+Some PS3 games bake trademark glyphs (`®`, `™`) or promo tags into their own
+metadata (`PARAM.SFO`, trophy config). The XMB hides these when it draws the name;
+`title_overrides` lets you do the same here. Each entry is `"<match>=<replacement>"`:
+
+- `<match>` is either a **title id** (e.g. `BCES01585`) or an **exact title string**
+  (e.g. `KILLZONE®`). A title-id match wins over a title-string match.
+- The override is applied to new sessions, trophy sets and the live "now playing",
+  **and retroactively to titles already in the database** when the add-on starts.
+
+The add-on ships with sensible defaults for common offenders; edit the list to taste.
 
 ### Playtime source
 

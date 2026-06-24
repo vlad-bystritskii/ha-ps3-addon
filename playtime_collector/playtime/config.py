@@ -84,3 +84,19 @@ PLUGIN_SYNC_INTERVAL = int(get("plugin_sync_interval", "PLUGIN_SYNC_INTERVAL", 6
 PLAYTIME_SOURCE = str(get("playtime_source", "PLAYTIME_SOURCE", "auto")).strip().lower()
 if PLAYTIME_SOURCE not in ("auto", "webman", "plugin"):
     PLAYTIME_SOURCE = "auto"
+
+# Game-title overrides, maintained by the user in the add-on options. Each entry is
+# "<match>=<replacement>"; <match> is a title id (BCES01585) or an exact title string
+# ("KILLZONE®"). Used to drop trademark glyphs / promo tags the games bake into their
+# own metadata (the XMB hides these too). See titles.fix_title.
+_overrides_raw = get("title_overrides", "TITLE_OVERRIDES", [])
+if isinstance(_overrides_raw, str):
+    _overrides_raw = _overrides_raw.split(";")
+TITLE_OVERRIDES = {}
+for _item in _overrides_raw or []:
+    _text = str(_item)
+    if "=" in _text:
+        _match, _replacement = _text.split("=", 1)
+        _match = _match.strip()
+        if _match:
+            TITLE_OVERRIDES[_match] = _replacement.strip()

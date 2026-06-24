@@ -24,8 +24,10 @@ log = logging.getLogger("playtime")
 @asynccontextmanager
 async def lifespan(app):
     db.init_db()
-    log.info("playtime-collector starting · PS3 %s · source %s · poll %ss",
-             config.PS3_HOST or "(unset)", config.PLAYTIME_SOURCE, config.POLL_INTERVAL)
+    db.apply_title_overrides(config.TITLE_OVERRIDES)
+    log.info("playtime-collector starting · PS3 %s · source %s · poll %ss · %d title override(s)",
+             config.PS3_HOST or "(unset)", config.PLAYTIME_SOURCE, config.POLL_INTERVAL,
+             len(config.TITLE_OVERRIDES))
     client = httpx.AsyncClient()
     # Playtime source is selectable so each install runs only what it has.
     tasks = []

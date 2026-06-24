@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+- **Title overrides** — a new `title_overrides` option to clean up game names that
+  ship with trademark glyphs or promo tags in their own metadata (e.g.
+  `KILLZONE®` → `KILLZONE`, `Dante's Inferno™` → `Dante's Inferno`), the same way
+  the PS3 XMB hides them. Each entry is `"<match>=<replacement>"`, where `<match>`
+  is a title id (e.g. `BCES01585`) or an exact title string. Applied to new
+  sessions, trophy sets and the live "now playing", and **retroactively to titles
+  already stored** on start. Ships with sensible defaults you can edit.
+
 ## 0.7.2
 
 - Add-on **icon and logo** for the Home Assistant store and add-on page.

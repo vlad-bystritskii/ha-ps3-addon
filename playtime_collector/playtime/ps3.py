@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from .titles import fix_title
+
 TITLEID = r"[A-Z]{4}\d{5}"
 TITLEID_RE = re.compile(r"/np/(" + TITLEID + r")/")
 TITLEID_FALLBACK_RE = re.compile(r"/dev_hdd0/game//(" + TITLEID + r")")
@@ -55,6 +57,7 @@ def parse_cpursx(html):
     title_match = TITLE_RE.search(html)
     if title_match:
         title = VERSION_SUFFIX_RE.sub("", title_match.group(1).strip()) or None
+        title = fix_title(title, title_id)
 
     play_seconds = None
     play_match = PLAY_RE.search(html)
