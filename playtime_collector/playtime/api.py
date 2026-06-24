@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
 from . import config, db, ps3, trophies
@@ -79,6 +80,128 @@ def build_stats(platform=None, frm=None, to=None):
         "currentlyPlaying": [game_entry(row, open_keys) for row in open_rows],
         "games": games,
     }
+
+
+# ---- web dashboard ---------------------------------------------------------
+
+def _fmt_dur(s):
+    s = int(s or 0)
+    h, m = s // 3600, (s % 3600) // 60
+    if h:
+        return f"{h}h {m:02d}m"
+    return f"{m}m" if m else f"{s}s"
+
+
+def _esc(t):
+    return (str(t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+_DASH_CSS = """
+:root{--bg:#0a0e1a;--panel:#121a2c;--panel2:#0d1422;--head:#142a4e;
+--accent:#29c6e6;--blue:#2a9df4;--white:#e9f1ff;--dim:#8aa0c0;--barbg:#1c2740}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--white);
+font:15px/1.4 -apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:920px;margin:0 auto;padding:16px}
+.head{display:flex;align-items:center;gap:14px;border-left:6px solid var(--accent);
+padding:10px 16px;background:var(--head);border-radius:10px}
+.head h1{margin:0;font-size:24px;letter-spacing:.5px}
+.head .sub{color:var(--dim);font-size:12px}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.chip{background:var(--panel);border-radius:10px;padding:10px 14px;flex:1;min-width:120px}
+.chip b{display:block;font-size:22px;color:var(--accent)}
+.chip span{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+h2{font-size:14px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;
+margin:24px 0 10px}
+.now{background:linear-gradient(90deg,#163a2a,#121a2c);border:1px solid #2e7d52;
+border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.now .live{color:#37e08a;font-weight:600}
+.row{background:var(--panel);border-radius:10px;padding:10px 14px;margin-bottom:8px}
+.row .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.row .name{font-weight:600}
+.row .who{color:var(--dim);font-size:12px}
+.row .time{color:var(--accent);font-weight:600;white-space:nowrap}
+.bar{height:8px;background:var(--barbg);border-radius:5px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--accent))}
+.tp{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:10px;
+padding:8px 14px;margin-bottom:6px}
+.tp .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp .med{color:var(--dim);font-size:13px;white-space:nowrap}
+.tp .pct{color:var(--accent);font-weight:600;width:54px;text-align:right}
+.acct{margin:16px 0 6px;color:var(--white);font-weight:600}
+.foot{color:var(--dim);font-size:11px;text-align:center;margin:24px 0 8px}
+a{color:var(--accent)}
+"""
+
+
+def _render_dashboard():
+    st = build_stats()
+    games = sorted(st["games"], key=lambda g: g["totalSeconds"], reverse=True)
+    maxs = max((g["totalSeconds"] for g in games), default=1) or 1
+    summ = st["summary"]
+    troph = sorted(db.query_trophies(config.PLATFORM, None),
+                   key=lambda t: (t["account"], -t.get("earnedCount", 0)))
+
+    out = ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
+           '<meta name="viewport" content="width=device-width,initial-scale=1">',
+           '<meta http-equiv="refresh" content="30">',
+           '<title>PS3 Playtime</title><style>', _DASH_CSS, '</style></head><body><div class="wrap">']
+
+    out.append(f'<div class="head"><h1>🎮 PS3 PLAYTIME</h1>'
+               f'<div class="sub">updated {_esc(st["generatedAt"])[:19]}<br>'
+               f'last poll {_esc(st["lastPollAt"])[:19] if st["lastPollAt"] else "—"}</div></div>')
+
+    out.append(f'<div class="chips">'
+               f'<div class="chip"><b>{_fmt_dur(summ["seconds_total"])}</b><span>total played</span></div>'
+               f'<div class="chip"><b>{summ["sessions_total"]}</b><span>sessions</span></div>'
+               f'<div class="chip"><b>{len(games)}</b><span>games</span></div></div>')
+
+    now = st["currentlyPlaying"]
+    if now:
+        out.append('<h2>Now playing</h2>')
+        for g in now:
+            out.append(f'<div class="now"><span class="live">● LIVE</span> '
+                       f'<b>{_esc(g["titleName"])}</b> · {_esc(g["account"])} · '
+                       f'{_fmt_dur(g["totalSeconds"])}</div>')
+
+    out.append('<h2>Playtime by game</h2>')
+    if not games:
+        out.append('<div class="row">No sessions yet — play a game with the tracker loaded.</div>')
+    for g in games:
+        pct = int(g["totalSeconds"] * 100 / maxs)
+        out.append(f'<div class="row"><div class="top">'
+                   f'<div><span class="name">{_esc(g["titleName"])}</span> '
+                   f'<span class="who">· {_esc(g["account"])} · {g["sessions"]} sess</span></div>'
+                   f'<div class="time">{_fmt_dur(g["totalSeconds"])}</div></div>'
+                   f'<div class="bar"><i style="width:{pct}%"></i></div></div>')
+
+    if troph:
+        out.append('<h2>Trophies</h2>')
+        cur = None
+        for t in troph:
+            if t["account"] != cur:
+                cur = t["account"]
+                out.append(f'<div class="acct">👤 {_esc(cur)}</div>')
+            e, tot = t.get("earnedCount", 0), t.get("totalCount", 0)
+            pct = int(e * 100 / tot) if tot else 0
+            ear = t.get("earned", {})
+            med = (f'🥉{ear.get("bronze",0)} 🥈{ear.get("silver",0)} '
+                   f'🥇{ear.get("gold",0)} 🏆{ear.get("platinum",0)}')
+            out.append(f'<div class="tp"><span class="name">{_esc(t["title"])}</span>'
+                       f'<span class="med">{med}</span>'
+                       f'<span class="pct">{e}/{tot}</span>'
+                       f'<span class="pct">{pct}%</span></div>')
+
+    out.append('<div class="foot">PS3 Playtime Collector · auto-refresh 30s · '
+               '<a href="/stats">/stats</a> · <a href="/trophies">/trophies</a></div>')
+    out.append('</div></body></html>')
+    return "".join(out)
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    return _render_dashboard()
 
 
 @app.get("/health")
