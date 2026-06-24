@@ -15,7 +15,7 @@ from . import config, db, ps3, trophies
 from . import dashboard as dashpage
 from .poller import (
     poll_loop, trophy_loop, rarity_loop, summary_loop, plugin_sync_loop,
-    avatar_path, cache_avatar,
+    avatar_path, cache_avatar, game_icon_path, cache_game_icon,
 )
 
 log = logging.getLogger("playtime")
@@ -358,6 +358,30 @@ async def avatar(
     if path.exists():
         return Response(content=path.read_bytes(), media_type="image/png", headers=headers)
     raise HTTPException(status_code=404, detail="no avatar")
+
+
+def _img_media_type(data):
+    return "image/png" if data[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
+
+
+@app.get("/game-icon/{title_id}")
+async def game_icon(
+    title_id: str,
+    token: str | None = Query(default=None),
+    x_auth_token: str | None = Header(default=None),
+):
+    """Game icon (console ICON0 / GameTDB cover). Served from disk cache; fetched +
+    cached live on a miss. Open (no token) for the dashboard's <img> tags. 404 when
+    no icon can be found (the dashboard falls back to the initials square)."""
+    headers = {"Cache-Control": "max-age=604800"}
+    path = game_icon_path(title_id)
+    if not path.exists():
+        async with httpx.AsyncClient() as client:
+            await cache_game_icon(client, title_id)
+    if path.exists():
+        data = path.read_bytes()
+        return Response(content=data, media_type=_img_media_type(data), headers=headers)
+    raise HTTPException(status_code=404, detail="no icon")
 
 
 @app.delete("/sessions")

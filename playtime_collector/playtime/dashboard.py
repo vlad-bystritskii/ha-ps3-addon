@@ -135,7 +135,9 @@ const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const hue=s=>{let h=0;for(const c of String(s))h=c.charCodeAt(0)+((h<<5)-h);return Math.abs(h)%360};
 const av=(s,sq)=>`<div class="av${sq?' sq':''}" style="background:linear-gradient(135deg,hsl(${hue(s)},55%,42%),hsl(${(hue(s)+40)%360},55%,30%))">${esc(String(s||'?')[0].toUpperCase())}</div>`;
 // player avatar: real PS3 face when cached, else fall back to the initials circle
-const pav=(s)=>`<img class="av" loading="lazy" src="${ICONBASE}/avatar/${encodeURIComponent(s||'?')}.png${TOKEN?('?token='+TOKEN):''}" data-s="${esc(s||'?')}" onerror="this.outerHTML=av(this.dataset.s)">`;
+const pav=(s)=>`<img class="av" loading="lazy" src="${ICONBASE}/avatar/${encodeURIComponent(s||'?')}${TOKEN?('?token='+TOKEN):''}" data-s="${esc(s||'?')}" onerror="this.outerHTML=av(this.dataset.s)">`;
+// game icon: console ICON0 / GameTDB cover when cached, else the initials square
+const gicon=(tid,title)=>`<img class="av sq" loading="lazy" src="${ICONBASE}/game-icon/${encodeURIComponent(tid||'?')}${TOKEN?('?token='+TOKEN):''}" data-t="${esc(title||'?')}" onerror="this.outerHTML=av(this.dataset.t,1)">`;
 
 function players(){
   const m={};
@@ -176,7 +178,7 @@ function render(){
   if(D.now.length)h+='<h2>Now playing</h2>'+D.now.map(n=>`<div class="now"><span class="dot"></span>${pav(n.account)}<div class="mid"><div class="name">${esc(n.title)}</div><div class="who">${esc(n.account)} · live</div></div></div>`).join('');
   h+='<div class="cols">';
   h+='<div class="col"><h2>Top players</h2><div class="card">'+(p.length?p.map((x,i)=>`<div class="row" onclick="openPlayer('${esc(x.account)}')"><span class="rank">${i+1}</span>${pav(x.account)}<div class="mid"><div class="name">${esc(x.account)}</div><div class="who">${x.n} sess · ${x.games} games · 🏆${x.tro}</div></div><div class="time">${fmt(x.sec)}</div><div class="barwrap"><i style="width:${x.sec*100/maxp}%"></i></div></div>`).join(''):'<div class="row">—</div>')+'</div></div>';
-  h+='<div class="col"><h2>Top games</h2><div class="card">'+(g.length?g.map((x,i)=>`<div class="row" onclick="openGame('${esc(x.titleId)}')"><span class="rank">${i+1}</span>${av(x.title,1)}<div class="mid"><div class="name">${esc(x.title)}</div><div class="who">${esc(x.account)} · ${x.sessions} sess</div></div><div class="time">${fmt(x.totalSeconds)}</div><div class="barwrap"><i style="width:${x.totalSeconds*100/maxg}%"></i></div></div>`).join(''):'<div class="row">No sessions yet</div>')+'</div></div>';
+  h+='<div class="col"><h2>Top games</h2><div class="card">'+(g.length?g.map((x,i)=>`<div class="row" onclick="openGame('${esc(x.titleId)}')"><span class="rank">${i+1}</span>${gicon(x.titleId,x.title)}<div class="mid"><div class="name">${esc(x.title)}</div><div class="who">${esc(x.account)} · ${x.sessions} sess</div></div><div class="time">${fmt(x.totalSeconds)}</div><div class="barwrap"><i style="width:${x.totalSeconds*100/maxg}%"></i></div></div>`).join(''):'<div class="row">No sessions yet</div>')+'</div></div>';
   h+='</div>';
   h+='<h2>By day</h2>'+chart(dailyBars(D.sessions,14),170);
   h+=renderFeed();
@@ -195,13 +197,13 @@ function bestDow(ss){const a=[0,0,0,0,0,0,0];ss.forEach(s=>{const d=new Date(s.s
 function openPlayer(acc){
   const ss=D.sessions.filter(s=>s.account===acc);
   const tot=ss.reduce((x,s)=>x+s.seconds,0),n=ss.length;
-  const gm={};ss.forEach(s=>{(gm[s.titleId]||(gm[s.titleId]={title:s.title,sec:0,n:0}));gm[s.titleId].sec+=s.seconds;gm[s.titleId].n++});
+  const gm={};ss.forEach(s=>{(gm[s.titleId]||(gm[s.titleId]={title:s.title,titleId:s.titleId,sec:0,n:0}));gm[s.titleId].sec+=s.seconds;gm[s.titleId].n++});
   const topg=Object.values(gm).sort((a,b)=>b.sec-a.sec);
   const avg=n?tot/n:0,rec=ss.reduce((m,s)=>Math.max(m,s.seconds),0);
   const tro=D.trophies.filter(t=>t.account===acc);
   let h=`<div class="mh">${pav(acc)}<h3>${esc(acc)}</h3><span class="x" onclick="closeM()">✕</span></div>`;
   h+=`<div class="mstats"><div class="s"><b>${fmt(tot)}</b><span>total</span></div><div class="s"><b>${n}</b><span>sessions</span></div><div class="s"><b>${topg.length}</b><span>games</span></div><div class="s"><b>${fmt(avg)}</b><span>avg session</span></div><div class="s"><b>${fmt(rec)}</b><span>longest</span></div><div class="s"><b>${esc(bestDow(ss))}</b><span>best weekday</span></div><div class="s"><b>${esc(peakDay(ss))}</b><span>peak day</span></div><div class="s"><b>${tro.reduce((x,t)=>x+t.earnedCount,0)}</b><span>trophies</span></div></div>`;
-  h+='<div class="mcols"><div class="mcol"><h2>Top games</h2><div class="card">'+(topg.length?topg.slice(0,12).map(x=>`<div class="tp">${av(x.title,1)}<span class="name">${esc(x.title)}</span><span class="med">${x.n} sess</span><span class="pct">${fmt(x.sec)}</span></div>`).join(''):'<div class="tp">—</div>')+'</div></div>';
+  h+='<div class="mcols"><div class="mcol"><h2>Top games</h2><div class="card">'+(topg.length?topg.slice(0,12).map(x=>`<div class="tp">${gicon(x.titleId,x.title)}<span class="name">${esc(x.title)}</span><span class="med">${x.n} sess</span><span class="pct">${fmt(x.sec)}</span></div>`).join(''):'<div class="tp">—</div>')+'</div></div>';
   h+='<div class="mcol"><h2>Sessions log</h2><div class="card" style="padding:4px 14px">'+(ss.length?ss.slice(0,22).map(s=>`<div class="jr"><span>${esc((s.started||'').slice(0,16).replace('T',' '))} · <b>${esc(s.title)}</b></span><span>${fmt(s.seconds)}</span></div>`).join(''):'—')+'</div></div></div>';
   h+='<h2>By weekday</h2>'+dow(ss);
   openM(h);
@@ -213,7 +215,7 @@ function openGame(tid){
   const pl={};ss.forEach(s=>{(pl[s.account]||(pl[s.account]={sec:0,n:0}));pl[s.account].sec+=s.seconds;pl[s.account].n++});
   const tops=Object.entries(pl).map(([a,v])=>({a,...v})).sort((x,y)=>y.sec-x.sec);
   const tr=D.trophies.filter(t=>t.title===title);
-  let h=`<div class="mh">${av(title,1)}<h3>${esc(title)}</h3><span class="x" onclick="closeM()">✕</span></div>`;
+  let h=`<div class="mh">${gicon(tid,title)}<h3>${esc(title)}</h3><span class="x" onclick="closeM()">✕</span></div>`;
   h+=`<div class="mstats"><div class="s"><b>${fmt(tot)}</b><span>total</span></div><div class="s"><b>${ss.length}</b><span>sessions</span></div><div class="s"><b>${tops.length}</b><span>players</span></div><div class="s"><b>${esc(peakDay(ss))}</b><span>peak day</span></div></div>`;
   h+='<div class="mcols"><div class="mcol"><h2>Top players</h2><div class="card">'+tops.map(x=>`<div class="tp">${pav(x.a)}<span class="name">${esc(x.a)}</span><span class="med">${x.n} sess</span><span class="pct">${fmt(x.sec)}</span></div>`).join('')+'</div></div>';
   h+='<div class="mcol"><h2>Sessions log</h2><div class="card" style="padding:4px 14px">'+(ss.length?ss.slice(0,22).map(s=>`<div class="jr"><span>${esc((s.started||'').slice(0,16).replace('T',' '))} · <b>${esc(s.account)}</b></span><span>${fmt(s.seconds)}</span></div>`).join(''):'—')+'</div></div></div>';

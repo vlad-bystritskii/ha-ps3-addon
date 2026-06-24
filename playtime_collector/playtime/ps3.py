@@ -177,6 +177,39 @@ async def fetch_avatar(host, client, profile_id, username):
     return png if png[:8] == b"\x89PNG\r\n\x1a\n" else None
 
 
+# Game icons: prefer the console's own ICON0.PNG (authentic, matches what's
+# installed, works offline of the internet) and fall back to GameTDB's free PS3
+# cover database keyed by TITLEID (covers disc/uninstalled games; needs internet).
+GAMETDB_REGIONS = ("EN", "US", "JA", "FR", "DE", "ES")
+
+
+def _is_image(b):
+    return b[:8] == b"\x89PNG\r\n\x1a\n" or b[:3] == b"\xff\xd8\xff"  # PNG or JPEG
+
+
+async def fetch_game_icon(host, client, title_id):
+    """Fetch a game's icon bytes (PNG or JPEG), or None. Console ICON0 first,
+    then GameTDB cover art."""
+    if not title_id:
+        return None
+    try:
+        r = await client.get(
+            "http://" + host + "/dev_hdd0/game/" + title_id + "/ICON0.PNG", timeout=5.0)
+        if r.status_code == 200 and _is_image(r.content):
+            return r.content
+    except (httpx.HTTPError, OSError):
+        pass
+    for region in GAMETDB_REGIONS:
+        try:
+            r = await client.get(
+                "https://art.gametdb.com/ps3/cover/%s/%s.jpg" % (region, title_id), timeout=8.0)
+        except (httpx.HTTPError, OSError):
+            continue
+        if r.status_code == 200 and _is_image(r.content):
+            return r.content
+    return None
+
+
 async def resolve_username(host, client, profile_id):
     """Resolve a local profile id (e.g. 00000003) to its PS3 username
     (e.g. Ashe-raddo) by reading dev_hdd0/home/<id>/localusername. Cached."""

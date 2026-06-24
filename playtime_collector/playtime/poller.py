@@ -12,7 +12,9 @@ from pathlib import Path
 import httpx
 
 from . import config, db, psn, trophies
-from .ps3 import fetch_avatar, fetch_snapshot, list_profiles, resolve_username
+from .ps3 import (
+    fetch_avatar, fetch_game_icon, fetch_snapshot, list_profiles, resolve_username,
+)
 
 log = logging.getLogger("playtime")
 
@@ -82,6 +84,28 @@ async def cache_avatar(client, profile_id, account):
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(png)
+
+
+def game_icon_path(title_id):
+    return Path(config.ICON_DIR) / "games" / title_id
+
+
+async def cache_game_icon(client, title_id):
+    """Save a game's icon (console ICON0 or GameTDB cover) so it's served offline.
+    Refetched only when missing. Stored raw (PNG or JPEG); the API sniffs the type."""
+    if not title_id or title_id == "?":
+        return
+    path = game_icon_path(title_id)
+    if path.exists():
+        return
+    try:
+        img = await fetch_game_icon(config.PS3_HOST, client, title_id)
+    except Exception:
+        return
+    if not img:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(img)
 
 
 def handle_snapshot(snapshot, account):
@@ -155,6 +179,8 @@ async def poll_loop(client):
                 if name:
                     account = name
             handle_snapshot(snapshot, account)
+            if snapshot.online and snapshot.title_id:
+                await cache_game_icon(client, snapshot.title_id)
         except Exception:  # never let the loop die
             log.exception("poll failed")
         await asyncio.sleep(config.POLL_INTERVAL)
@@ -215,6 +241,7 @@ async def ingest_sessions(client):
             continue
         db.insert_closed_session(
             config.PLATFORM, account, s.get("titleId", "?"), s.get("title"), seconds, db.now_iso())
+        await cache_game_icon(client, s.get("titleId"))
         inserted += 1
         log.info("⏹ %s — %s · %s (plugin)",
                  account, s.get("title") or s.get("titleId"), fmt_dur(seconds))
