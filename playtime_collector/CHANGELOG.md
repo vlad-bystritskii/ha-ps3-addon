@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+- Two more default title overrides: `GTA IV` → `Grand Theft Auto IV` and
+  `Wolverine Trophies` → `X-Men Origins: Wolverine` (for naming consistency).
+
 ## 0.8.0
 
 - **Title overrides** — a new `title_overrides` option to clean up game names that

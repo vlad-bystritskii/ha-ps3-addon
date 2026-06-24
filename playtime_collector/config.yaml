@@ -1,5 +1,5 @@
 name: Playtime Collector
-version: "0.8.0"
+version: "0.8.1"
 slug: playtime_collector
 description: PS3 (webMAN MOD) playtime & trophies — web dashboard + JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addon
@@ -48,6 +48,8 @@ options:
     - "LittleBigPlanet™3=LittleBigPlanet 3"
     - "Tom Clancy's Splinter Cell® Blacklist™=Tom Clancy's Splinter Cell Blacklist"
     - "Gran Turismo®6=Gran Turismo 6"
+    - "GTA IV=Grand Theft Auto IV"
+    - "Wolverine Trophies=X-Men Origins: Wolverine"
 schema:
   ps3_host: str
   playtime_source: "list(auto|webman|plugin)"
