@@ -22,6 +22,10 @@ Your jailbroken PS3 already runs an HTTP server ([webMAN MOD]) while HEN is enab
 This always-on add-on (running on your Home Assistant box) turns that into a proper
 data source:
 
+- 🖥️ **Built-in web dashboard** — top players with their **real PS3 profile avatars**,
+  top games with **real game icons**, now-playing, a by-day chart, click-through
+  player/game detail modals, and a **trophy activity feed** with real trophy icons.
+  One click from the add-on page (**Open Web UI**).
 - ⏱️ **Playtime** per **profile** and **game** — who played what, for how long.
 - 🏆 **Trophies** read **straight off the console** — so they work even for profiles
   that were never synced to PSN.
@@ -68,17 +72,41 @@ data source:
 
 Full option docs: [`playtime_collector/DOCS.md`](playtime_collector/DOCS.md).
 
+## 🖥️ Web dashboard
+
+Open it straight from the add-on page — **Settings → Add-ons → Playtime Collector →
+Open Web UI** (or browse to `http://<your-ha-host>:3301/`). No URL to remember.
+
+- **Top players** with their **real PS3 profile avatars** and **top games** with **real
+  game icons** — click either for a detail modal (stats, sessions log, trophies, by-weekday).
+- **Now playing**, a **by-day** chart, and a **trophy activity feed** showing recent
+  unlocks with the actual trophy icons, rarity, and grade.
+
+Where the images come from (all pulled over webMAN, **cached to disk so they survive the
+console being off**):
+
+- **Avatars** — the profile's chosen avatar, resolved from the firmware gallery via the
+  console registry. Works for **locally-set avatars with no PSN login**.
+- **Game icons** — the game's own `ICON0.PNG` from the console, falling back to
+  [GameTDB] cover art for anything not installed.
+
+[GameTDB]: https://www.gametdb.com
+
 ## 🌐 API
 
-Served on port `3301` (send the optional `X-Auth-Token` header):
+Served on port `3301` (send the optional `X-Auth-Token` header; image routes are open
+so the dashboard `<img>` tags load):
 
 ```
+GET /                                      web dashboard (HTML)
 GET /stats                                playtime totals per profile/game (+ ?from=&to=)
 GET /sessions                             raw sessions
 GET /trophies                             trophy summary per profile
 GET /trophies/{account}                   full trophy list for a profile
 GET /trophies/{account}/{npwr}            per-trophy detail (earned, rarity, icon URL)
 GET /trophy-icon/{account}/{npwr}/{id}    trophy icon PNG
+GET /avatar/{account}                     profile avatar PNG (cached)
+GET /game-icon/{titleId}                  game icon PNG/JPEG (console ICON0 / GameTDB)
 GET /health
 ```
 
