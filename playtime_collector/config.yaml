@@ -1,8 +1,9 @@
 name: Playtime Collector
-version: "0.7.1"
+version: "0.7.2"
 slug: playtime_collector
-description: Track PS3 (webMAN MOD) playtime and trophies and expose them over a JSON API
+description: PS3 (webMAN MOD) playtime & trophies — web dashboard + JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addon
+stage: stable
 arch:
   - amd64
   - aarch64

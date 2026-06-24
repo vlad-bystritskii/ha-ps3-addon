@@ -1,0 +1,40 @@
+# Changelog
+
+## 0.7.2
+
+- Add-on **icon and logo** for the Home Assistant store and add-on page.
+- Add this **changelog** (shown in the add-on UI).
+- Marked `stage: stable`; tidied store metadata.
+
+## 0.7.1
+
+- **Built-in web dashboard** at `/` — open it with one click from the add-on page
+  (**Open Web UI**), no URL to remember.
+- **Real PS3 profile avatars** for top players — resolved from the console registry
+  and firmware gallery, so they work even for **locally-set avatars with no PSN login**.
+  Cached to disk so faces stay visible while the console is off.
+- **Real game icons** — the game's own `ICON0.PNG` from the console, with
+  [GameTDB](https://www.gametdb.com) cover art as a fallback. Also cached.
+- **Trophy activity feed** — recent unlocks with the actual trophy icons, rarity and grade.
+- Interactive **player/game detail modals**, **now playing**, and a **by-day** chart.
+- New open image routes: `GET /avatar/{account}`, `GET /game-icon/{titleId}`.
+- Fix: avatar `<img>` URL no longer carries a stray `.png` (every lookup used to miss).
+
+## 0.5.0
+
+- First server-rendered web dashboard at `/` (playtime bars, now-playing, trophies).
+
+## 0.4.0
+
+- Dual playtime source (`auto` / `webman` / `plugin`) and on-console plugin ingest
+  (`sessions.jsonl` / `current.json` over webMAN; plugin is the source of truth).
+
+## 0.3.0
+
+- Trophies read straight off the console (works for offline profiles); icons cached.
+- Per-profile attribution via `localusername`; `ignore_accounts` option.
+- Optional global PSN rarity via `psn_npsso`.
+
+## 0.1.0
+
+- Initial release: LAN polling of webMAN `cpursx.ps3`, playtime sessions, JSON API.
