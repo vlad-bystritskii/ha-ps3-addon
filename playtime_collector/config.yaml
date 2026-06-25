@@ -1,7 +1,7 @@
 name: Playtime Collector
-version: "0.8.1"
+version: "0.9.1"
 slug: playtime_collector
-description: PS3 (webMAN MOD) playtime & trophies — web dashboard + JSON API
+description: Cross-platform console playtime & trophies (PS3, PS Vita) — web dashboard, settings & people UI + JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addon
 stage: stable
 arch:
@@ -13,7 +13,11 @@ webui: "http://[HOST]:[PORT:3301]/"
 ports:
   "3301/tcp": 3301
 ports_description:
-  "3301/tcp": JSON API
+  "3301/tcp": Web UI & JSON API
+# NOTE: For the in-app Settings page to PERSIST edits back to the add-on options,
+# the backend must call the Supervisor self API; that requires adding
+# `hassio_api: true` and `hassio_role: manager` here. Left out by default to avoid
+# granting elevated privileges silently — enable when wiring up POST /settings.
 map:
   - data:rw
 options:
@@ -25,6 +29,11 @@ options:
   ignore_accounts: "Vlad"
   auth_token: ""
   psn_npsso: ""
+  vita_host: ""
+  vita_port: 1337
+  vita_account: "vita"
+  vita_sync_interval: 60
+  vita_ignore_titles: "VITASHELL"
   title_overrides:
     - "BCES01585=The Last of Us"
     - "The Last of Us™=The Last of Us"
@@ -59,5 +68,10 @@ schema:
   ignore_accounts: str
   auth_token: str
   psn_npsso: "password?"
+  vita_host: "str?"
+  vita_port: int
+  vita_account: "str?"
+  vita_sync_interval: int
+  vita_ignore_titles: "str?"
   title_overrides:
     - str

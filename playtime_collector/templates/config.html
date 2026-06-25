@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Playtime · Settings</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>⚙️</text></svg>">
+<style>
+:root{--bg:#080b14;--panel:#101827;--panel2:#0c1320;--line:#1d2b45;--accent:#29c6e6;
+--blue:#2a9df4;--white:#eef4ff;--dim:#8499b8;--ok:#37e08a;--err:#ff6b81}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 500px at 50% -200px,#13203a,transparent),var(--bg);
+color:var(--white);font:15px/1.45 -apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:18px}
+.head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:16px;
+background:linear-gradient(120deg,#16305a,#0e1c33);border:1px solid var(--line)}
+.head .logo{font-size:30px}.head h1{margin:0;font-size:24px;letter-spacing:.5px;flex:1}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.nav a{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+padding:7px 14px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none}
+.nav a:hover{color:var(--white);border-color:var(--accent)}.nav a.on{color:var(--accent);border-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 6px}
+.fld{margin-bottom:16px}
+.fld label{display:block;font-size:12px;color:var(--dim);text-transform:uppercase;
+letter-spacing:.6px;font-weight:700;margin-bottom:6px}
+.fld .hint{color:#5a6c8a;font-size:11px;margin-top:5px;font-weight:400;text-transform:none;letter-spacing:0}
+input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);
+border-radius:10px;color:var(--white);padding:10px 12px;font:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+textarea{min-height:140px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.btn{background:linear-gradient(120deg,var(--blue),var(--accent));color:#06121f;border:0;
+border-radius:10px;padding:11px 22px;font-weight:800;font-size:14px;cursor:pointer}
+.btn[disabled]{opacity:.5;cursor:default}
+.bar{display:flex;align-items:center;gap:14px;margin:8px 0 18px}
+.msg{font-size:13px;font-weight:600;min-height:18px}
+.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}.msg.warn{color:#e7d96a}
+.foot{color:var(--dim);font-size:11px;text-align:center;margin:24px 0 8px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><div class="logo">⚙️</div><h1>Settings</h1></div>
+  <div class="nav"><a href="./">Dashboard</a><a href="./people">People</a><a class="on" href="./config">Settings</a></div>
+
+  <div id="loadmsg" class="msg" style="margin:8px 0 14px">Loading current settings…</div>
+
+  <form id="form" class="card" style="display:none">
+    <div class="fld">
+      <label for="ps3_host">PS3 host</label>
+      <input id="ps3_host" name="ps3_host" placeholder="192.168.1.72" autocomplete="off">
+      <div class="hint">IP address of the PS3 running webMAN MOD.</div>
+    </div>
+    <div class="fld">
+      <label for="playtime_source">Playtime source</label>
+      <select id="playtime_source" name="playtime_source">
+        <option value="auto">auto — plugin log when present, else LAN polling</option>
+        <option value="webman">webman — LAN polling only</option>
+        <option value="plugin">plugin — on-console plugin log only</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label for="account">Fallback account label</label>
+      <input id="account" name="account" placeholder="ps3" autocomplete="off">
+      <div class="hint">Used when a console profile can't be resolved.</div>
+    </div>
+    <div class="fld">
+      <label for="ignore_accounts">Ignored accounts</label>
+      <input id="ignore_accounts" name="ignore_accounts" placeholder="Vlad" autocomplete="off">
+      <div class="hint">Comma-separated profiles to skip (e.g. technical accounts).</div>
+    </div>
+    <div class="fld">
+      <label for="poll_interval">Poll interval (s)</label>
+      <input id="poll_interval" name="poll_interval" type="number" min="5" placeholder="30">
+    </div>
+    <div class="fld">
+      <label for="trophy_interval">Trophy interval (s)</label>
+      <input id="trophy_interval" name="trophy_interval" type="number" min="60" placeholder="1800">
+    </div>
+    <div class="fld">
+      <label for="auth_token">API auth token</label>
+      <input id="auth_token" name="auth_token" type="password" autocomplete="new-password">
+      <div class="hint">If set, required in the <code>X-Auth-Token</code> header. Empty = open on LAN.</div>
+    </div>
+    <div class="fld">
+      <label for="psn_npsso">PSN NPSSO token</label>
+      <input id="psn_npsso" name="psn_npsso" type="password" autocomplete="new-password">
+      <div class="hint">Optional — enriches trophies with global PSN rarity.</div>
+    </div>
+    <div class="fld">
+      <label for="title_overrides">Title overrides</label>
+      <textarea id="title_overrides" name="title_overrides" spellcheck="false"
+        placeholder="BCES01585=The Last of Us&#10;KILLZONE®=KILLZONE"></textarea>
+      <div class="hint">One per line, <code>match=replacement</code>. Match is a title id or exact title.</div>
+    </div>
+    <div class="bar">
+      <button id="save" class="btn" type="submit">Save settings</button>
+      <span id="msg" class="msg"></span>
+    </div>
+  </form>
+
+  <div class="foot">Changes are stored as add-on options; some take effect after the add-on restarts.</div>
+</div>
+
+<script>
+// Relative URLs so this works both on the direct port and behind HA ingress.
+const SETTINGS_URL = "settings";
+const $ = id => document.getElementById(id);
+const FIELDS = ["ps3_host","playtime_source","account","ignore_accounts",
+                "poll_interval","trophy_interval","auth_token","psn_npsso"];
+
+function fill(cfg){
+  cfg = cfg || {};
+  FIELDS.forEach(k => { if (k in cfg && cfg[k] != null) $(k).value = cfg[k]; });
+  const ov = cfg.title_overrides;
+  if (Array.isArray(ov)) $("title_overrides").value = ov.join("\n");
+  else if (typeof ov === "string") $("title_overrides").value = ov.replace(/;/g, "\n");
+}
+
+function collect(){
+  const out = {};
+  FIELDS.forEach(k => { out[k] = $(k).value.trim(); });
+  out.poll_interval = parseInt(out.poll_interval, 10) || undefined;
+  out.trophy_interval = parseInt(out.trophy_interval, 10) || undefined;
+  out.title_overrides = $("title_overrides").value
+    .split("\n").map(s => s.trim()).filter(s => s.includes("="));
+  return out;
+}
+
+async function load(){
+  try {
+    const r = await fetch(SETTINGS_URL, {headers: {"Accept": "application/json"}});
+    if (r.status === 404) { // backend endpoint not live yet — start from a blank form
+      $("loadmsg").textContent = "Settings API not available yet — editing a blank form (not saved until backend is live).";
+      $("loadmsg").className = "msg warn";
+      $("form").style.display = "block";
+      return;
+    }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    fill(await r.json());
+    $("loadmsg").style.display = "none";
+    $("form").style.display = "block";
+  } catch (e) {
+    $("loadmsg").textContent = "Could not load settings: " + e.message;
+    $("loadmsg").className = "msg err";
+    $("form").style.display = "block"; // still let the user edit/submit
+  }
+}
+
+$("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const msg = $("msg");
+  $("save").disabled = true;
+  msg.className = "msg"; msg.textContent = "Saving…";
+  try {
+    const r = await fetch(SETTINGS_URL, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(collect()),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    let body = {};
+    try { body = await r.json(); } catch (_) {}
+    msg.className = "msg ok";
+    msg.textContent = body.restart_required === false
+      ? "Saved." : "Saved — restart the add-on to apply.";
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = "Save failed: " + e.message;
+  } finally {
+    $("save").disabled = false;
+  }
+});
+
+load();
+</script>
+</body>
+</html>

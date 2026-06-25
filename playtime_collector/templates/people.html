@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Playtime · People</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>👥</text></svg>">
+<style>
+:root{--bg:#080b14;--panel:#101827;--panel2:#0c1320;--line:#1d2b45;--accent:#29c6e6;
+--blue:#2a9df4;--white:#eef4ff;--dim:#8499b8;--ok:#37e08a;--err:#ff6b81}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 500px at 50% -200px,#13203a,transparent),var(--bg);
+color:var(--white);font:15px/1.45 -apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:18px}
+.head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:16px;
+background:linear-gradient(120deg,#16305a,#0e1c33);border:1px solid var(--line)}
+.head .logo{font-size:30px}.head h1{margin:0;font-size:24px;letter-spacing:.5px;flex:1}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.nav a{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+padding:7px 14px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none}
+.nav a:hover{color:var(--white);border-color:var(--accent)}.nav a.on{color:var(--accent);border-color:var(--accent)}
+h2{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin:24px 0 12px;font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.av{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;
+justify-content:center;font-weight:700;font-size:17px;color:#fff}
+.prow{display:flex;align-items:center;gap:12px}
+.prow .name{font-weight:700;font-size:17px}
+.links{margin:14px 0 6px;display:flex;flex-direction:column;gap:8px}
+.link{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);
+border-radius:10px;padding:8px 12px}
+.link .acct{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{color:#5a6c8a;font-size:13px;padding:4px 2px}
+.pbadge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.5px;padding:2px 7px;
+border-radius:6px;text-transform:uppercase;background:#22324f;color:#9fc2ff}
+.pbadge.p-ps3{background:#13345e;color:#7fb6ff}.pbadge.p-psvita{background:#3a2350;color:#c69bff}
+input,select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+color:var(--white);padding:9px 11px;font:inherit}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+.frm{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.frm input{flex:1;min-width:120px}
+.btn{background:linear-gradient(120deg,var(--blue),var(--accent));color:#06121f;border:0;
+border-radius:10px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.sm{padding:6px 12px;font-size:12px}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--dim)}
+.btn.ghost:hover{color:var(--err);border-color:var(--err)}
+.btn[disabled]{opacity:.5;cursor:default}
+.msg{font-size:13px;font-weight:600;min-height:16px;margin:4px 0}
+.msg.err{color:var(--err)}.msg.ok{color:var(--ok)}.msg.warn{color:#e7d96a}
+.foot{color:var(--dim);font-size:11px;text-align:center;margin:24px 0 8px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><div class="logo">👥</div><h1>People</h1></div>
+  <div class="nav"><a href="./">Dashboard</a><a class="on" href="./people">People</a><a href="./config">Settings</a></div>
+
+  <div class="card">
+    <h2 style="margin:0 0 10px">Add a person</h2>
+    <form id="addPerson" class="frm">
+      <input id="personName" placeholder="Name (e.g. Vlad)" autocomplete="off" required>
+      <button class="btn" type="submit">Add person</button>
+    </form>
+    <div id="addMsg" class="msg"></div>
+  </div>
+
+  <h2>People &amp; linked accounts</h2>
+  <div id="status" class="msg">Loading…</div>
+  <div id="people"></div>
+
+  <div class="foot">Link each console account to a person to merge their playtime across platforms.</div>
+</div>
+
+<script>
+// Relative URLs so this works both on the direct port and behind HA ingress.
+const PERSONS_URL = "persons", LINKS_URL = "links";
+const PLATFORMS = ["ps3","psvita"];   // known platforms; extend as more are added
+const PLABEL = {ps3:"PS3", psvita:"Vita"};
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const plabel = p => PLABEL[p] || String(p||"").toUpperCase();
+const hue = s => { let h=0; for (const c of String(s)) h=c.charCodeAt(0)+((h<<5)-h); return Math.abs(h)%360; };
+
+async function api(url, opts){
+  const r = await fetch(url, opts);
+  if (!r.ok) {
+    let detail = "HTTP " + r.status;
+    try { const j = await r.json(); if (j && j.detail) detail = j.detail; } catch (_) {}
+    throw new Error(detail);
+  }
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
+
+async function getPersons(){
+  // Live shape: { persons: [ { id, name, links: [ { platform, account } ] } ] }
+  const r = await fetch(PERSONS_URL, {headers:{"Accept":"application/json"}});
+  if (r.status === 404) return [];               // backend not live yet — treat as empty
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const t = await r.text();
+  const body = t ? JSON.parse(t) : {};
+  return Array.isArray(body) ? body : (body.persons || []);
+}
+
+function av(name){
+  const c = esc(String(name||"?")[0].toUpperCase());
+  return `<div class="av" style="background:linear-gradient(135deg,hsl(${hue(name)},55%,42%),hsl(${(hue(name)+40)%360},55%,30%))">${c}</div>`;
+}
+
+function platOptions(){ return PLATFORMS.map(p=>`<option value="${p}">${esc(plabel(p))}</option>`).join(""); }
+
+function renderPerson(p){
+  const links = p.links || [];
+  let h = `<div class="card" data-pid="${esc(p.id)}">`;
+  h += `<div class="prow">${av(p.name)}<div class="name" style="flex:1">${esc(p.name)}</div>`;
+  h += `<button class="btn ghost sm" onclick="removePerson('${esc(p.id)}')">Delete</button></div>`;
+  h += `<div class="links">`;
+  if (links.length) {
+    h += links.map(l => `<div class="link"><span class="pbadge p-${esc(l.platform)}">${esc(plabel(l.platform))}</span>`
+      + `<span class="acct">${esc(l.account)}</span>`
+      + `<button class="btn ghost sm" onclick="unlink('${esc(l.platform)}','${esc(l.account)}')">Unlink</button></div>`).join("");
+  } else {
+    h += `<div class="empty">No linked accounts yet.</div>`;
+  }
+  h += `</div>`;
+  h += `<form class="frm" onsubmit="return addLink(event,'${esc(p.id)}')">`
+     + `<select class="lp">${platOptions()}</select>`
+     + `<input class="la" placeholder="Account (console profile)" autocomplete="off" required>`
+     + `<button class="btn sm" type="submit">Link account</button></form>`;
+  h += `</div>`;
+  return h;
+}
+
+async function refresh(){
+  const st = $("status");
+  try {
+    const persons = await getPersons();
+    if (!persons.length) {
+      st.className = "msg"; st.style.display = "";
+      st.textContent = "No people yet — add one above to get started.";
+      $("people").innerHTML = "";
+      return;
+    }
+    st.style.display = "none";
+    $("people").innerHTML = persons.map(renderPerson).join("");
+  } catch (e) {
+    st.className = "msg err"; st.style.display = "";
+    st.textContent = "Could not load people: " + e.message;
+  }
+}
+
+$("addPerson").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const name = $("personName").value.trim();
+  if (!name) return;
+  const msg = $("addMsg"); msg.className = "msg"; msg.textContent = "Adding…";
+  try {
+    await api(PERSONS_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name})});
+    $("personName").value = "";
+    msg.className = "msg ok"; msg.textContent = "Added.";
+    refresh();
+  } catch (e) {
+    msg.className = "msg err"; msg.textContent = "Failed: " + e.message;
+  }
+});
+
+async function removePerson(id){
+  if (!confirm("Delete this person? Linked accounts will be unlinked.")) return;
+  try { await api(PERSONS_URL + "/" + encodeURIComponent(id), {method:"DELETE"}); refresh(); }
+  catch (e) { alert("Delete failed: " + e.message); }
+}
+
+async function addLink(ev, pid){
+  ev.preventDefault();
+  const form = ev.target;
+  const platform = form.querySelector(".lp").value;
+  const account = form.querySelector(".la").value.trim();
+  if (!account) return false;
+  try {
+    // Live POST /links expects { personId, platform, account }.
+    await api(LINKS_URL, {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({personId: Number(pid), platform, account})});
+    refresh();
+  } catch (e) { alert("Link failed: " + e.message); }
+  return false;
+}
+
+async function unlink(platform, account){
+  // Live DELETE /links?platform=&account=  ((platform, account) is unique).
+  const url = LINKS_URL + "?platform=" + encodeURIComponent(platform) + "&account=" + encodeURIComponent(account);
+  try { await api(url, {method:"DELETE"}); refresh(); }
+  catch (e) { alert("Unlink failed: " + e.message); }
+}
+
+refresh();
+</script>
+</body>
+</html>

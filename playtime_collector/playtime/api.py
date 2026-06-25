@@ -3,7 +3,10 @@
 The poll loop runs as a background task started on app startup.
 """
 import asyncio
+import json
 import logging
+import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -17,6 +20,7 @@ from .poller import (
     poll_loop, trophy_loop, rarity_loop, summary_loop, plugin_sync_loop,
     avatar_path, cache_avatar, game_icon_path, cache_game_icon,
 )
+from .vita import vita_sync_loop
 
 log = logging.getLogger("playtime")
 
@@ -41,6 +45,11 @@ async def lifespan(app):
         asyncio.create_task(rarity_loop()),
         asyncio.create_task(summary_loop()),
     ]
+    # PS Vita: pull its FTP session queue (separate console, runs if configured).
+    if config.VITA_HOST:
+        log.info("vita poller on · ftp %s:%s · account %s",
+                 config.VITA_HOST, config.VITA_PORT, config.VITA_ACCOUNT)
+        tasks.append(asyncio.create_task(vita_sync_loop()))
     try:
         yield
     finally:
@@ -73,18 +82,131 @@ def game_entry(row, open_keys):
     }
 
 
-def build_stats(platform=None, frm=None, to=None):
-    open_rows = db.open_sessions(platform)
+def platform_distribution(platform=None, frm=None, to=None, accounts=None):
+    """[{platform, seconds, sessions, pct}] over the scoped range; pct is the
+    share of total played time, one decimal. Empty when nothing is in range."""
+    rows = db.platform_totals(platform, frm, to, accounts)
+    total = sum((r["seconds"] or 0) for r in rows)
+    return [
+        {
+            "platform": r["platform"],
+            "seconds": r["seconds"] or 0,
+            "sessions": r["sessions"],
+            "pct": round((r["seconds"] or 0) * 100 / total, 1) if total else 0.0,
+        }
+        for r in rows
+    ]
+
+
+def build_stats(platform=None, frm=None, to=None, accounts=None):
+    open_rows = db.open_sessions(platform, accounts)
     open_keys = {(r["platform"], r["account"], r["title_id"]) for r in open_rows}
-    games = [game_entry(row, open_keys) for row in db.totals(platform, frm, to)]
+    games = [game_entry(row, open_keys) for row in db.totals(platform, frm, to, accounts)]
     return {
         "generatedAt": db.now_iso(),
         "trackedSince": db.get_meta("tracked_since"),
         "lastPollAt": db.get_meta("last_poll_at"),
         "range": {"from": frm, "to": to},
-        "summary": db.summary(platform, frm, to),
+        "summary": db.summary(platform, frm, to, accounts),
+        "platformDistribution": platform_distribution(platform, frm, to, accounts),
         "currentlyPlaying": [game_entry(row, open_keys) for row in open_rows],
         "games": games,
+    }
+
+
+# ---- period-bucketed chart series ------------------------------------------
+# Buckets sessions by start time into a fixed series per period. Boundaries are
+# computed in the host's local time (started_at is stored UTC-aware, so it is
+# converted on the way in); a whole session's seconds land in its start bucket.
+
+_WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+_PERIODS = ("today", "week", "month", "year", "all")
+
+
+def _local_now():
+    return datetime.now(timezone.utc).astimezone()
+
+
+def _to_local(iso):
+    """Parse a stored ISO timestamp to a local-time datetime (None if unparsable)."""
+    if not iso:
+        return None
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+    if dt.tzinfo is None:
+        return dt  # naive: assume already local
+    return dt.astimezone()
+
+
+def _utc_iso(dt):
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def _bucket_plan(period):
+    """(start_local, end_local, labels, index_fn) for the calendar-anchored
+    periods. 'all' is handled separately (its span depends on the data)."""
+    now = _local_now()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "today":
+        end = midnight + timedelta(days=1)
+        return midnight, end, ["%02d" % h for h in range(24)], lambda dt: dt.hour
+    if period == "week":
+        start = midnight - timedelta(days=midnight.weekday())
+        return start, start + timedelta(days=7), list(_WEEKDAYS), \
+            lambda dt: (dt.date() - start.date()).days
+    if period == "month":
+        start = midnight.replace(day=1)
+        end = start.replace(year=start.year + 1, month=1) if start.month == 12 \
+            else start.replace(month=start.month + 1)
+        days = (end - start).days
+        return start, end, [str(d) for d in range(1, days + 1)], lambda dt: dt.day - 1
+    # year
+    start = midnight.replace(month=1, day=1)
+    return start, start.replace(year=start.year + 1), list(_MONTHS), \
+        lambda dt: dt.month - 1
+
+
+def build_chart(period="week", platform=None, accounts=None):
+    """{period, bars:[{label, value_seconds}], total_seconds, peak:{label,
+    value_seconds}}. period in today|week|month|year|all."""
+    period = (period or "week").lower()
+    if period not in _PERIODS:
+        raise HTTPException(status_code=400, detail="invalid period")
+
+    if period == "all":
+        rows = db.session_times(platform, None, None, accounts)
+        local = [(_to_local(r["started_at"]), r["seconds"] or 0) for r in rows]
+        years = [dt.year for dt, _ in local if dt]
+        ymin = min(years) if years else _local_now().year
+        ymax = max(years) if years else ymin
+        labels = [str(y) for y in range(ymin, ymax + 1)]
+        values = [0] * len(labels)
+        for dt, sec in local:
+            if dt:
+                values[dt.year - ymin] += sec
+    else:
+        start, end, labels, index_fn = _bucket_plan(period)
+        rows = db.session_times(platform, _utc_iso(start), _utc_iso(end), accounts)
+        values = [0] * len(labels)
+        for r in rows:
+            dt = _to_local(r["started_at"])
+            if dt is None:
+                continue
+            i = index_fn(dt)
+            if 0 <= i < len(values):
+                values[i] += r["seconds"] or 0
+
+    bars = [{"label": l, "value_seconds": v} for l, v in zip(labels, values)]
+    peak = max(bars, key=lambda b: b["value_seconds"]) if bars else None
+    return {
+        "period": period,
+        "bars": bars,
+        "total_seconds": sum(values),
+        "peak": peak,
     }
 
 
@@ -145,7 +267,7 @@ def _render_dashboard():
     games = sorted(st["games"], key=lambda g: g["totalSeconds"], reverse=True)
     maxs = max((g["totalSeconds"] for g in games), default=1) or 1
     summ = st["summary"]
-    troph = sorted(db.query_trophies(config.PLATFORM, None),
+    troph = sorted(db.query_trophies(None, None),
                    key=lambda t: (t["account"], -t.get("earnedCount", 0)))
 
     out = ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
@@ -210,6 +332,31 @@ def dashboard():
     return dashpage.render()
 
 
+# Static UI pages built by the front-end. Served as siblings of "/" so the
+# navbar's relative ./people and ./config (and the pages' relative fetches to
+# persons/links/settings) resolve correctly under HA ingress. Left open, like the
+# "/" dashboard and the image routes — the pages carry no token.
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+
+
+def _serve_template(name):
+    path = TEMPLATES_DIR / name
+    try:
+        return HTMLResponse(path.read_text(encoding="utf-8"))
+    except OSError:
+        raise HTTPException(status_code=404, detail="page not available")
+
+
+@app.get("/people", response_class=HTMLResponse)
+def people_page():
+    return _serve_template("people.html")
+
+
+@app.get("/config", response_class=HTMLResponse)
+def config_page():
+    return _serve_template("config.html")
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -219,10 +366,18 @@ def health():
 def stats(
     from_: str | None = Query(default=None, alias="from"),
     to: str | None = Query(default=None),
+    person: int | None = Query(default=None),
     x_auth_token: str | None = Header(default=None),
 ):
+    """Playtime totals across all platforms. With `?person=<id>` the totals are
+    restricted to that person's linked accounts (across every platform)."""
     check_auth(x_auth_token)
-    return build_stats(None, from_, to)
+    accounts = None
+    if person is not None:
+        if db.get_person(person) is None:
+            raise HTTPException(status_code=404, detail="unknown person")
+        accounts = db.accounts_for_person(person)
+    return build_stats(None, from_, to, accounts)
 
 
 @app.get("/stats/{platform}")
@@ -248,15 +403,206 @@ def sessions(
     return {"sessions": db.list_sessions(platform, from_, to, limit)}
 
 
+def _resolve_accounts(person):
+    """Map ?person=<id> to its (platform, account) pairs (404 if unknown).
+    None when no person filter is requested."""
+    if person is None:
+        return None
+    if db.get_person(person) is None:
+        raise HTTPException(status_code=404, detail="unknown person")
+    return db.accounts_for_person(person)
+
+
+@app.get("/chart")
+def chart(
+    period: str = Query(default="week"),
+    person: int | None = Query(default=None),
+    platform: str | None = Query(default=None),
+    x_auth_token: str | None = Header(default=None),
+):
+    """Period-bucketed playtime series for the dashboard chart.
+
+    ?period=today|week|month|year|all (+ optional ?person=<id> and ?platform).
+    today→24 hourly bars, week→7 weekday bars (current Mon–Sun), month→one bar
+    per day of the current month, year→12 monthly bars, all→one bar per year.
+    Returns {period, bars:[{label, value_seconds}], total_seconds,
+    peak:{label, value_seconds}}.
+    """
+    check_auth(x_auth_token)
+    accounts = _resolve_accounts(person)
+    return build_chart(period, platform, accounts)
+
+
+@app.get("/games/{platform}/{title_id}")
+def game_detail(
+    platform: str,
+    title_id: str,
+    x_auth_token: str | None = Header(default=None),
+):
+    """Per-game detail across every account that played it.
+
+    {title, platform, titleId, totalSeconds, sessions, avgSession, firstPlayed,
+     lastPlayed,
+     players:[{account, person, personId, seconds, sessions, trophies, lastPlayed}],
+     trophies:[{id, name, desc, grade, hidden, unlocked, earnedAt, rarityPct}]}
+
+    Trophies are matched to the game by platform + title (PS3 trophy sets are
+    keyed by npcommid); platforms without trophies return an empty list."""
+    check_auth(x_auth_token)
+    players_rows = db.game_players(platform, title_id)
+    if not players_rows:
+        raise HTTPException(status_code=404, detail="unknown game")
+
+    pmap = db.account_person_map()
+    accounts = [r["account"] for r in players_rows]
+    title = next((r["title"] for r in players_rows if r["title"]), None)
+    total = sum((r["total_seconds"] or 0) for r in players_rows)
+    sessions = sum(r["sessions"] for r in players_rows)
+    firsts = [r["first_played"] for r in players_rows if r["first_played"]]
+    lasts = [r["last_played"] for r in players_rows if r["last_played"]]
+
+    # Trophy sets that belong to this game (same platform + title), per account.
+    sets = [s for s in db.query_trophies(platform, None)
+            if s["title"] == title and s["account"] in accounts]
+    earned_by_acct = {}
+    npcommids = []
+    for s in sets:
+        earned_by_acct[s["account"]] = max(
+            earned_by_acct.get(s["account"], 0), s["earnedCount"])
+        if s["npcommid"] not in npcommids:
+            npcommids.append(s["npcommid"])
+
+    players = []
+    for r in players_rows:
+        person = pmap.get((platform, r["account"]))
+        players.append({
+            "account": r["account"],
+            "person": person["name"] if person else None,
+            "personId": person["id"] if person else None,
+            "seconds": r["total_seconds"] or 0,
+            "sessions": r["sessions"],
+            "trophies": earned_by_acct.get(r["account"], 0),
+            "lastPlayed": r["last_played"],
+        })
+
+    return {
+        "title": title,
+        "platform": platform,
+        "titleId": title_id,
+        "totalSeconds": total,
+        "sessions": sessions,
+        "avgSession": int(total / sessions) if sessions else 0,
+        "firstPlayed": min(firsts) if firsts else None,
+        "lastPlayed": max(lasts) if lasts else None,
+        "players": players,
+        "trophies": _game_trophies(platform, npcommids, accounts),
+    }
+
+
+def _game_trophies(platform, npcommids, accounts):
+    """Union the trophy definitions for a game across the players who own the
+    set: unlocked = anyone unlocked it, earnedAt = earliest unlock, rarityPct =
+    global PSN rate. Empty list when there are no trophy sets (e.g. psvita)."""
+    out = []
+    for npcommid in npcommids:
+        rarity = db.get_rarity(npcommid)
+        agg = {}
+        for acct in accounts:
+            for it in db.query_trophy_items(platform, acct, npcommid):
+                tid = it["id"]
+                cur = agg.get(tid)
+                if cur is None:
+                    info = rarity.get(tid)
+                    agg[tid] = {
+                        "id": tid,
+                        "name": it["name"],
+                        "desc": it["detail"],
+                        "grade": it["grade"],
+                        "hidden": it["hidden"],
+                        "unlocked": bool(it["unlocked"]),
+                        "earnedAt": it["earnedAt"],
+                        "rarityPct": info["earned_rate"] if info else None,
+                    }
+                elif it["unlocked"]:
+                    cur["unlocked"] = True
+                    if it["earnedAt"] and (cur["earnedAt"] is None
+                                           or it["earnedAt"] < cur["earnedAt"]):
+                        cur["earnedAt"] = it["earnedAt"]
+        out.extend(sorted(agg.values(), key=lambda t: t["id"]))
+    return out
+
+
+@app.get("/history")
+def history(
+    person: int | None = Query(default=None),
+    platform: str | None = Query(default=None),
+    type: str = Query(default="all"),
+    limit: int = Query(default=200),
+    x_auth_token: str | None = Header(default=None),
+):
+    """Merged session + trophy activity feed, newest first.
+
+    ?type=all|session|trophy, optional ?person=<id> and ?platform, ?limit.
+    Each item: {kind:"session"|"trophy", datetime, title, platform, account,
+    person, personId, ...}. Sessions add titleId, endedAt, durationSeconds,
+    isOpen; trophies add name, detail, grade, rarityPct."""
+    check_auth(x_auth_token)
+    accounts = _resolve_accounts(person)
+    typ = (type or "all").lower()
+    if typ not in ("all", "session", "trophy"):
+        raise HTTPException(status_code=400, detail="invalid type")
+
+    pmap = db.account_person_map()
+    items = []
+
+    if typ in ("all", "session"):
+        for s in db.session_history(platform, accounts, limit):
+            who = pmap.get((s["platform"], s["account"]))
+            items.append({
+                "kind": "session",
+                "datetime": s["started_at"],
+                "endedAt": s["ended_at"],
+                "title": s["title"],
+                "titleId": s["title_id"],
+                "platform": s["platform"],
+                "account": s["account"],
+                "person": who["name"] if who else None,
+                "personId": who["id"] if who else None,
+                "durationSeconds": s["seconds"],
+                "isOpen": bool(s["is_open"]),
+            })
+
+    if typ in ("all", "trophy"):
+        for t in db.trophy_history(platform, accounts, limit):
+            who = pmap.get((t["platform"], t["account"]))
+            items.append({
+                "kind": "trophy",
+                "datetime": t["earned_at"],
+                "title": t["game"],
+                "name": t["name"],
+                "detail": t["detail"],
+                "grade": t["grade"],
+                "platform": t["platform"],
+                "account": t["account"],
+                "person": who["name"] if who else None,
+                "personId": who["id"] if who else None,
+                "rarityPct": t["earned_rate"],
+            })
+
+    items.sort(key=lambda x: x["datetime"] or "", reverse=True)
+    return {"history": items[:limit]}
+
+
 @app.get("/trophies")
 def trophies_list(
     account: str | None = Query(default=None),
+    platform: str | None = Query(default=None),
     x_auth_token: str | None = Header(default=None),
 ):
     check_auth(x_auth_token)
     return {
         "refreshedAt": db.get_meta("trophies_refreshed_at"),
-        "trophies": db.query_trophies(config.PLATFORM, account),
+        "trophies": db.query_trophies(platform, account),
     }
 
 
@@ -276,13 +622,13 @@ def trophy_detail_account(
     account: str,
     x_auth_token: str | None = Header(default=None),
 ):
-    """Every trophy of a player, across all games (from storage; always available)."""
+    """Every trophy of a player, across all games and platforms (from storage)."""
     check_auth(x_auth_token)
-    sets = db.query_trophies(config.PLATFORM, account)
+    sets = db.query_trophies(None, account)
     if not sets:
         raise HTTPException(status_code=404, detail="unknown account")
     for entry in sets:
-        items = db.query_trophy_items(config.PLATFORM, account, entry["npcommid"])
+        items = db.query_trophy_items(entry["platform"], account, entry["npcommid"])
         entry["trophies"] = with_icons(account, entry["npcommid"], items)
     return {
         "account": account,
@@ -299,10 +645,10 @@ def trophy_detail(
 ):
     """Per-trophy detail for one game (from storage; always available)."""
     check_auth(x_auth_token)
-    items = db.query_trophy_items(config.PLATFORM, account, npcommid)
+    items = db.query_trophy_items(None, account, npcommid)
     if not items:
         raise HTTPException(status_code=404, detail="unknown account/game")
-    sets = db.query_trophies(config.PLATFORM, account)
+    sets = db.query_trophies(None, account)
     title = next((s["title"] for s in sets if s["npcommid"] == npcommid), None)
     return {
         "account": account,
@@ -393,6 +739,167 @@ def delete_sessions(
 ):
     check_auth(x_auth_token)
     return {"deleted": db.delete_sessions(account)}
+
+
+# ---- persons & account links -----------------------------------------------
+# A "person" groups platform accounts so playtime can be aggregated across
+# consoles. account_links enforces UNIQUE (platform, account).
+#
+# These management endpoints are intentionally open (no check_auth): the People
+# page (/people) fetches them from the browser with no token, exactly like the
+# open "/" dashboard and the /avatar and /game-icon image routes. The shared
+# token guards the documented machine-facing API (/stats, /trophies, /sessions,
+# /ingest), not the LAN web UI.
+
+@app.get("/persons")
+def persons_list():
+    return {"persons": db.list_persons()}
+
+
+@app.post("/persons")
+async def persons_create(request: Request):
+    """Body: {name}. Returns the created person."""
+    body = await request.json()
+    name = str(body.get("name", "")).strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name required")
+    person_id = db.add_person(name)
+    return {"id": person_id, "name": name, "links": []}
+
+
+@app.delete("/persons/{person_id}")
+def persons_delete(person_id: int):
+    """Remove a person and all of their account links."""
+    return {"deleted": db.delete_person(person_id)}
+
+
+@app.get("/links")
+def links_list(person: int | None = Query(default=None)):
+    """All account links, optionally filtered by `?person=<id>`."""
+    return {"links": db.list_links(person)}
+
+
+@app.post("/links")
+async def links_create(request: Request):
+    """Body: {personId, platform, account}. Links an account to a person.
+    409 if that (platform, account) is already linked."""
+    body = await request.json()
+    person_id = body.get("personId", body.get("person_id"))
+    platform = str(body.get("platform", "")).strip()
+    account = str(body.get("account", "")).strip()
+    if person_id is None or not platform or not account:
+        raise HTTPException(status_code=400, detail="personId, platform and account required")
+    person_id = int(person_id)
+    if db.get_person(person_id) is None:
+        raise HTTPException(status_code=404, detail="unknown person")
+    if not db.add_link(person_id, platform, account):
+        raise HTTPException(status_code=409, detail="account already linked")
+    return {"ok": True, "link": {"person_id": person_id, "platform": platform, "account": account}}
+
+
+@app.delete("/links")
+def links_delete(
+    platform: str = Query(...),
+    account: str = Query(...),
+):
+    """Unlink an account, identified by its unique (platform, account)."""
+    return {"deleted": db.delete_link(platform, account)}
+
+
+# ---- settings (in-app config editor) ---------------------------------------
+# Mirrors the add-on options the front-end Settings page (/config) edits. Open,
+# like the page that consumes it. Option names/types match config.yaml's schema.
+
+# The add-on option keys this editor exposes (in config.yaml's `schema`).
+_SETTING_KEYS = [
+    "ps3_host", "playtime_source", "account", "ignore_accounts",
+    "poll_interval", "trophy_interval", "auth_token", "psn_npsso",
+    "title_overrides",
+]
+
+
+@app.get("/settings")
+def settings_get():
+    """Current effective add-on options, as the Settings page expects them."""
+    return {
+        "ps3_host": config.PS3_HOST,
+        "playtime_source": config.PLAYTIME_SOURCE,
+        "account": config.ACCOUNT,
+        # schema type is `str` (comma-separated); config parsed it into a list.
+        "ignore_accounts": ", ".join(config.IGNORE_ACCOUNTS),
+        "poll_interval": config.POLL_INTERVAL,
+        "trophy_interval": config.TROPHY_INTERVAL,
+        "auth_token": config.AUTH_TOKEN,
+        "psn_npsso": config.PSN_NPSSO,
+        # schema type is `list(str)`; config parsed it into a {match: replacement} map.
+        "title_overrides": ["%s=%s" % (k, v) for k, v in config.TITLE_OVERRIDES.items()],
+    }
+
+
+def _options_from_body(body):
+    """Pick only known option keys from the posted JSON (drops anything else)."""
+    opts = {}
+    for key in _SETTING_KEYS:
+        if key in body and body[key] is not None:
+            opts[key] = body[key]
+    return opts
+
+
+def _write_options_file(opts):
+    """Persist options by merging into /data/options.json (the file config.py
+    reads on startup), preserving any keys this editor doesn't manage."""
+    path = config.OPTIONS_FILE
+    current = {}
+    if path.exists():
+        try:
+            current = json.loads(path.read_text())
+        except (ValueError, OSError):
+            current = {}
+    current.update(opts)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(current, indent=2))
+
+
+@app.post("/settings")
+async def settings_save(request: Request):
+    """Persist edited add-on options. Best-effort dual path, no privilege escalation:
+
+    1. If a Supervisor token is present (env SUPERVISOR_TOKEN), try the Supervisor
+       self-options API so HAOS stores them durably.
+    2. On any failure (no token, 403 without hassio_api, network error) fall back
+       to writing /data/options.json directly.
+
+    NOTE: truly HAOS-persistent saving (surviving an add-on rebuild, editable from
+    the add-on's own Configuration tab) needs `hassio_api: true` +
+    `hassio_role: manager` in config.yaml. That is intentionally NOT added here —
+    it would be a silent privilege escalation; the Supervisor call is best-effort.
+
+    Config is read at process startup, so applied changes need an add-on restart.
+    """
+    body = await request.json()
+    opts = _options_from_body(body)
+
+    persisted = None
+    token = os.environ.get("SUPERVISOR_TOKEN")
+    if token:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    "http://supervisor/addons/self/options",
+                    json={"options": opts},
+                    headers={"Authorization": "Bearer " + token},
+                    timeout=10.0,
+                )
+            if resp.status_code < 400:
+                persisted = "supervisor"
+        except (httpx.HTTPError, OSError):
+            persisted = None
+
+    if persisted is None:
+        _write_options_file(opts)
+        persisted = "file"
+
+    return {"ok": True, "persisted": persisted, "restart_required": True}
 
 
 @app.post("/ingest")

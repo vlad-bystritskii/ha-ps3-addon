@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- **In-app Settings page** (`/config`) — view and edit the add-on options (host,
+  source, intervals, tokens, title overrides) from the web UI instead of
+  hand-editing YAML.
+- **People & account links** (`/people`) — create persons and link/unlink each
+  console account to them, so playtime can be merged across platforms.
+- **Platform-aware dashboard** — the hardcoded "PS3 PLAYTIME" wording is gone; the
+  dashboard now shows a platform badge (PS3 / Vita / …) on each game and session,
+  and a top nav between Dashboard / People / Settings.
+
 ## 0.8.1
 
 - Two more default title overrides: `GTA IV` → `Grand Theft Auto IV` and

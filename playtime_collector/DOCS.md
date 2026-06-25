@@ -4,7 +4,21 @@ Polls a jailbroken **PS3** (webMAN MOD) over the LAN, accumulates per-profile
 **playtime**, reads **trophies** off the console, and serves everything as a small
 JSON API. Nothing is installed on the console.
 
+## Web UI
+
+Open the add-on's web UI (**Open Web UI** on the add-on page) for:
+
+- **Dashboard** (`/`) — playtime, now-playing, trophies and a by-day chart. Each
+  game/session carries a platform badge (PS3, Vita, …).
+- **Settings** (`/config`) — view/edit the options below from the browser instead
+  of hand-editing YAML. Saved values are written back to the add-on options; some
+  changes apply after the add-on restarts.
+- **People** (`/people`) — create persons and link console accounts to them so a
+  player's playtime can be merged across platforms.
+
 ## Configuration
+
+Options can be set from the in-app **Settings** page or in the add-on config YAML.
 
 | Option            | Default | Description                                             |
 |-------------------|---------|---------------------------------------------------------|

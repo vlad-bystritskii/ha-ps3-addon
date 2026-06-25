@@ -30,7 +30,12 @@ def get(key, env, default):
     return os.environ.get(env, default)
 
 
-PLATFORM = "ps3"
+# Platform identity stamped on rows written by this collector's built-in PS3
+# poller (sessions/trophies). It is NOT a global read filter: the API derives a
+# row's platform from the data itself, and push-based platforms supply their own
+# `platform` via POST /ingest. Configurable so the same image can front another
+# console, but it defaults to "ps3" to preserve existing behaviour.
+PLATFORM = get("platform", "PLATFORM", "ps3")
 
 # IP of the PS3 running webMAN MOD. No default: set it per install.
 PS3_HOST = get("ps3_host", "PS3_HOST", "")
@@ -100,3 +105,24 @@ for _item in _overrides_raw or []:
         _match = _match.strip()
         if _match:
             TITLE_OVERRIDES[_match] = _replacement.strip()
+
+
+# --- PS Vita (pull over FTP) -------------------------------------------------
+# The Vita can't reliably push, so HA pulls its session queue over FTP, the same
+# way it polls the PS3. Needs an always-on FTP server on the Vita (the
+# `ftpeverywhere` plugin autostarts one on port 1337) plus the on-Vita kernel
+# plugin writing ux0:data/VitaPlaytime/pending.jsonl. Empty host = poller off.
+VITA_HOST = get("vita_host", "VITA_HOST", "")
+VITA_PORT = int(get("vita_port", "VITA_PORT", 1337))
+# Player label stamped on Vita sessions (the Vita is single-user). Set it to a
+# PS3 account name to merge both consoles under one person via the People mapping.
+VITA_ACCOUNT = get("vita_account", "VITA_ACCOUNT", "vita")
+# How often to pull the Vita queue over FTP, in seconds.
+VITA_SYNC_INTERVAL = int(get("vita_sync_interval", "VITA_SYNC_INTERVAL", 60))
+# Vita titleIds to never record (homebrew / system apps the kernel can't filter,
+# e.g. VitaShell). List, or comma-separated string. NPXS* are always skipped.
+_vita_ignore_raw = get("vita_ignore_titles", "VITA_IGNORE_TITLES", "VITASHELL")
+if isinstance(_vita_ignore_raw, list):
+    VITA_IGNORE_TITLES = [str(t).strip() for t in _vita_ignore_raw if str(t).strip()]
+else:
+    VITA_IGNORE_TITLES = [t.strip() for t in str(_vita_ignore_raw).split(",") if t.strip()]

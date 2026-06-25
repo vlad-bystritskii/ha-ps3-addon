@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  ::selection{background:var(--accent);color:#fff;}
+  [data-theme="dark"]{--bg:#0b0d12;--surface:#14161d;--surface2:#1b1e27;--surfaceHover:rgba(255,255,255,.035);--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.14);--text:#e9ebf0;--dim:#9aa0ad;--faint:#5b6070;}
+  [data-theme="light"]{--bg:#eef1f5;--surface:#ffffff;--surface2:#f4f6f9;--surfaceHover:rgba(15,20,35,.03);--border:rgba(15,20,35,.09);--border2:rgba(15,20,35,.16);--text:#161922;--dim:#5b6473;--faint:#9aa1b0;}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  @keyframes blip{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.82);}}
+  @keyframes ptPop{from{transform:scale(.965) translateY(8px);}to{transform:scale(1) translateY(0);}}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="--accent:{{ accent }};min-height:100vh;background:var(--bg,#0b0d12);color:var(--text,#e9ebf0);font-family:'Space Grotesk',system-ui,sans-serif;position:relative;overflow-x:hidden;">
+
+<div style="position:absolute;inset:0 0 auto 0;height:420px;background:radial-gradient(130% 90% at 28% -25%, color-mix(in oklab, var(--accent) 15%, transparent), transparent 60%);pointer-events:none;"></div>
+
+<header style="position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:color-mix(in oklab, var(--bg,#0b0d12) 80%, transparent);border-bottom:1px solid var(--border,rgba(255,255,255,.07));">
+  <div style="max-width:1280px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:18px;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:28px;height:28px;background:linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 55%, #fff));transform:rotate(45deg);border-radius:8px;box-shadow:0 4px 16px color-mix(in oklab, var(--accent) 45%, transparent);"></div>
+      <div style="display:flex;flex-direction:column;line-height:1.05;">
+        <span style="font-weight:700;font-size:16px;letter-spacing:-.02em;">PLAYTRACE</span>
+        <span style="font-size:9.5px;color:var(--faint);letter-spacing:.2em;text-transform:uppercase;">console activity</span>
+      </div>
+    </div>
+    <div style="flex:1;"></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);">
+      <span style="width:8px;height:8px;border-radius:50%;background:#3fbf7f;box-shadow:0 0 0 3px color-mix(in oklab,#3fbf7f 22%,transparent);animation:blip 2.4s ease-in-out infinite;"></span>
+      <span style="font-size:9px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;">Synced</span>
+      <span style="font:600 12px 'JetBrains Mono';color:var(--dim);white-space:nowrap;">{{ lastPoll }}</span>
+    </div>
+    <button onClick="{{ toggleTheme }}" style="border:1px solid var(--border);background:var(--surface);color:var(--dim);padding:9px 14px;border-radius:10px;font:600 12px 'Space Grotesk';cursor:pointer;" style-hover="color:var(--text);border-color:var(--border2);">{{ themeBtn }}</button>
+
+    <div style="position:relative;">
+      <button onClick="{{ toggleAccountMenu }}" style="display:flex;align-items:center;gap:9px;border:1px solid var(--border2);background:var(--surface);padding:5px 11px 5px 6px;border-radius:12px;cursor:pointer;" style-hover="border-color:var(--accent);">
+        <div style="width:30px;height:30px;border-radius:9px;background:{{ acc.color }};display:flex;align-items:center;justify-content:center;font:600 12px 'Space Grotesk';color:#fff;">{{ acc.initials }}</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;">
+          <span style="font:600 13px 'Space Grotesk';color:var(--text);">{{ acc.name }}</span>
+          <span style="font-size:10px;color:var(--faint);">{{ acc.platLabel }}</span>
+        </div>
+        <span style="color:var(--faint);font-size:11px;margin-left:2px;">▾</span>
+      </button>
+      <sc-if value="{{ accountMenuOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeAccountMenu }}" style="position:fixed;inset:0;z-index:35;"></div>
+        <div style="position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:230px;background:var(--surface);border:1px solid var(--border2);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.4);padding:6px;">
+          <div style="font-size:9.5px;color:var(--faint);letter-spacing:.16em;text-transform:uppercase;padding:8px 10px 6px;">Switch account</div>
+          <sc-for list="{{ accountsList }}" as="a" hint-placeholder-count="2">
+            <button onClick="{{ a.onSelect }}" style="display:flex;align-items:center;gap:11px;width:100%;border:none;background:{{ a.activeBg }};padding:9px 10px;border-radius:10px;cursor:pointer;text-align:left;" style-hover="background:var(--surfaceHover);">
+              <div style="width:34px;height:34px;border-radius:10px;background:{{ a.color }};display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk';color:#fff;flex:none;">{{ a.initials }}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font:600 13px 'Space Grotesk';color:var(--text);">{{ a.name }}</div>
+                <div style="font-size:11px;color:var(--dim);">{{ a.platLabel }} · {{ a.totalLabel }}</div>
+              </div>
+              <sc-if value="{{ a.active }}" hint-placeholder-val="{{ false }}"><span style="color:var(--accent);font-size:13px;font-weight:700;">●</span></sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</header>
+
+<main style="position:relative;max-width:1280px;margin:0 auto;padding:26px 28px 90px;display:flex;flex-direction:column;gap:30px;">
+
+  <div style="display:grid;grid-template-columns:minmax(0,1.45fr) minmax(310px,1fr);gap:22px;align-items:stretch;">
+
+    <section style="min-width:0;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <span style="font:600 11px 'JetBrains Mono';letter-spacing:.2em;text-transform:uppercase;color:#2fd4a8;">Playtime</span>
+        <div style="display:flex;gap:3px;background:var(--surface2,#1b1e27);border:1px solid var(--border);border-radius:10px;padding:3px;">
+          <sc-for list="{{ periods }}" as="pr" hint-placeholder-count="5">
+            <button onClick="{{ pr.onClick }}" style="background:{{ pr.bg }};color:{{ pr.fg }};border:none;padding:6px 12px;border-radius:7px;font:600 11.5px 'Space Grotesk';cursor:pointer;white-space:nowrap;box-shadow:{{ pr.shadow }};">{{ pr.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="background:var(--surface,#14161d);border:1px solid var(--border);border-radius:18px;padding:20px 22px;flex:1;">
+        <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+          <span style="font:700 34px 'Space Grotesk';letter-spacing:-.02em;line-height:1;">{{ chart.totalLabel }}</span>
+          <span style="font-size:12.5px;color:var(--dim);">Peak <span style="color:var(--text);font-weight:600;">{{ chart.peakLabel }}</span></span>
+        </div>
+        <div style="display:flex;gap:3px;align-items:flex-end;height:150px;">
+          <sc-for list="{{ chart.bars }}" as="b" hint-placeholder-count="12">
+            <div title="{{ b.tip }}" style="flex:1;height:{{ b.pct }}%;background:linear-gradient(to top, #3ecf6b 0%, #bcd63f 36%, #f0913c 68%, #ec5350 100%);background-size:100% 150px;background-position:bottom;background-repeat:no-repeat;border-radius:3px 3px 1px 1px;min-height:4px;" style-hover="filter:brightness(1.1);"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:3px;margin-top:8px;">
+          <sc-for list="{{ chart.bars }}" as="b" hint-placeholder-count="12">
+            <span style="flex:1;text-align:center;font:500 9.5px 'JetBrains Mono';color:var(--faint);white-space:nowrap;overflow:hidden;">{{ b.label }}</span>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:22px;margin-top:22px;padding-top:20px;border-top:1px solid var(--border);flex-wrap:wrap;">
+          <div style="position:relative;width:96px;height:96px;border-radius:50%;background:{{ donut }};flex:none;">
+            <div style="position:absolute;inset:18px;border-radius:50%;background:var(--surface,#14161d);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;">
+              <span style="font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em;">Plat</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:9px;">
+            <sc-for list="{{ platDist }}" as="d" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="width:10px;height:10px;border-radius:3px;background:{{ d.color }};flex:none;"></span>
+                <span style="font:600 12.5px 'Space Grotesk';color:{{ d.color }};width:54px;flex:none;">{{ d.label }}</span>
+                <span style="font:500 12px 'JetBrains Mono';color:var(--dim);flex:1;">{{ d.time }}</span>
+                <span style="font:600 12.5px 'JetBrains Mono';color:var(--text);">{{ d.pctLabel }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section style="min-width:0;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+        <span style="font:600 11px 'JetBrains Mono';letter-spacing:.2em;text-transform:uppercase;color:#2fd4a8;">Recent Games</span>
+        <button onClick="{{ openGames }}" style="border:1px solid var(--border);background:var(--surface);color:var(--dim);padding:6px 11px;border-radius:9px;font:600 11px 'Space Grotesk';cursor:pointer;display:flex;align-items:center;gap:6px;" style-hover="color:var(--text);border-color:var(--border2);">All games <span style="font-size:12px;">→</span></button>
+      </div>
+      <div style="background:var(--surface,#14161d);border:1px solid var(--border);border-radius:18px;padding:8px 18px;flex:1;display:flex;flex-direction:column;">
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;">
+        <sc-for list="{{ games }}" as="g" hint-placeholder-count="5">
+          <div onClick="{{ g.onOpen }}" style="display:flex;align-items:center;gap:12px;padding:12px 6px;margin:0 -6px;border-bottom:{{ g.divider }};cursor:pointer;border-radius:10px;" style-hover="background:var(--surfaceHover,rgba(255,255,255,.03));">
+            <span style="width:18px;font:600 12px 'JetBrains Mono';color:{{ g.rankColor }};flex:none;">{{ g.rankLabel }}</span>
+            <div style="width:42px;height:42px;border-radius:10px;background:{{ g.platColor }}1f;background-image:repeating-linear-gradient(135deg, {{ g.platColor }}1a 0 6px, transparent 6px 13px);display:flex;align-items:center;justify-content:center;font:700 12px 'JetBrains Mono';color:{{ g.platColor }};flex:none;">{{ g.init }}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font:600 13.5px/1.2 'Space Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ g.title }}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+                <span style="background:{{ g.platColor }}1f;color:{{ g.platColor }};padding:2px 7px;border-radius:6px;font:600 9.5px 'JetBrains Mono';flex:none;">{{ g.platLabel }}</span>
+                <span style="font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Last played {{ g.lastPlayed }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:6px;font:600 11px 'JetBrains Mono';">
+                <span style="color:#ffb648;white-space:nowrap;">◆ {{ g.achievements }} trophies</span>
+                <span style="color:var(--dim);white-space:nowrap;">{{ g.sessionsLabel }}</span>
+              </div>
+            </div>
+            <span style="background:{{ accent }}24;color:{{ accent }};padding:5px 10px;border-radius:8px;font:600 11.5px 'JetBrains Mono';white-space:nowrap;flex:none;">{{ g.time }}</span>
+          </div>
+        </sc-for>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <section>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font:600 11px 'JetBrains Mono';letter-spacing:.2em;text-transform:uppercase;color:#2fd4a8;">History</span>
+        <div style="position:relative;">
+          <button onClick="{{ toggleProfileMenu }}" style="display:flex;align-items:center;gap:7px;border:1px solid var(--border2);background:var(--surface);color:var(--text);padding:6px 11px;border-radius:9px;font:600 11.5px 'Space Grotesk';cursor:pointer;" style-hover="border-color:var(--accent);">{{ histProfileLabel }} <span style="color:var(--faint);font-size:10px;">▾</span></button>
+          <sc-if value="{{ profileMenuOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeProfileMenu }}" style="position:fixed;inset:0;z-index:35;"></div>
+            <div style="position:absolute;left:0;top:calc(100% + 8px);z-index:40;width:190px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.4);padding:6px;">
+              <sc-for list="{{ profileOptions }}" as="o" hint-placeholder-count="3">
+                <button onClick="{{ o.onSelect }}" style="display:flex;align-items:center;justify-content:space-between;width:100%;border:none;background:{{ o.activeBg }};padding:9px 11px;border-radius:9px;cursor:pointer;text-align:left;font:600 12.5px 'Space Grotesk';color:var(--text);" style-hover="background:var(--surfaceHover);">{{ o.label }}<sc-if value="{{ o.active }}" hint-placeholder-val="{{ false }}"><span style="color:var(--accent);font-size:11px;">●</span></sc-if></button>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <sc-for list="{{ historyFilters }}" as="c" hint-placeholder-count="3">
+          <button onClick="{{ c.onClick }}" style="background:{{ c.bg }};color:{{ c.fg }};border:1px solid {{ c.bd }};padding:6px 12px;border-radius:9px;font:600 11.5px 'Space Grotesk';cursor:pointer;white-space:nowrap;" style-hover="color:var(--text);">{{ c.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background:var(--surface,#14161d);border:1px solid var(--border);border-radius:18px;padding:6px 22px 14px;">
+      <sc-for list="{{ historyGroups }}" as="grp" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:12px;padding:18px 0 10px;">
+          <span style="font:600 11px 'JetBrains Mono';letter-spacing:.12em;text-transform:uppercase;color:var(--dim);">{{ grp.date }}</span>
+          <span style="flex:1;height:1px;background:var(--border);"></span>
+          <span style="font-size:11px;color:var(--faint);">{{ grp.summary }}</span>
+        </div>
+        <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="4">
+          <div onClick="{{ it.onOpen }}" style="display:flex;align-items:center;gap:15px;padding:11px 6px;margin:0 -6px;border-bottom:1px solid var(--border,rgba(255,255,255,.05));cursor:{{ it.cursor }};border-radius:10px;" style-hover="background:var(--surfaceHover,rgba(255,255,255,.03));">
+            <span style="font:500 12px 'JetBrains Mono';color:var(--faint);width:42px;flex:none;">{{ it.time }}</span>
+            <sc-if value="{{ it.isTrophy }}" hint-placeholder-val="{{ false }}">
+              <div style="width:44px;height:44px;border-radius:11px;background:{{ it.iconColor }}1a;border:1px solid {{ it.iconColor }}40;display:flex;align-items:center;justify-content:center;flex:none;">
+                <div style="width:14px;height:14px;background:{{ it.iconColor }};transform:rotate(45deg);border-radius:3px;"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ it.isSession }}" hint-placeholder-val="{{ true }}">
+              <div style="width:44px;height:44px;border-radius:11px;background:color-mix(in oklab, var(--accent) 13%, transparent);border:1px solid color-mix(in oklab, var(--accent) 30%, transparent);display:flex;align-items:center;justify-content:center;flex:none;">
+                <div style="width:0;height:0;border-left:11px solid var(--accent);border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px;"></div>
+              </div>
+            </sc-if>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+                <span style="font:600 14px 'Space Grotesk';color:{{ it.titleColor }};">{{ it.title }}</span>
+                <span style="background:{{ it.platColor }}1f;color:{{ it.platColor }};padding:2px 8px;border-radius:6px;font:600 10px 'JetBrains Mono';">{{ it.platLabel }}</span>
+              </div>
+              <div style="font-size:12.5px;color:var(--dim);margin-top:3px;"><span style="color:{{ it.playerColor }};font-weight:600;">{{ it.playerName }}</span>{{ it.subRest }}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1.25;">
+              <span style="font:700 13px 'JetBrains Mono';color:{{ it.rightColor }};">{{ it.rightMain }}</span>
+              <span style="font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;">{{ it.rightSub }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </sc-for>
+    </div>
+  </section>
+
+  <sc-if value="{{ isGames }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ back }}" style="position:fixed;inset:0;z-index:50;background:color-mix(in oklab, var(--bg,#0b0d12) 58%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:48px 24px;overflow-y:auto;">
+      <div onClick="{{ stopProp }}" style="width:100%;max-width:920px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:24px 26px;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+          <span style="font:700 22px 'Space Grotesk';letter-spacing:-.02em;">All Games</span>
+          <span style="font-size:13px;color:var(--dim);">{{ acc.name }} · {{ acc.platLabel }}</span>
+          <div style="flex:1;"></div>
+          <button onClick="{{ back }}" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="color:var(--text);border-color:var(--border2);">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
+          <sc-for list="{{ allGames }}" as="g" hint-placeholder-count="8">
+            <div onClick="{{ g.onOpen }}" style="display:flex;align-items:center;gap:14px;background:var(--surface2,#1b1e27);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;" style-hover="border-color:var(--border2);">
+              <span style="width:20px;font:600 12.5px 'JetBrains Mono';color:{{ g.rankColor }};flex:none;">{{ g.rankLabel }}</span>
+              <div style="width:46px;height:46px;border-radius:11px;background:{{ g.platColor }}1f;background-image:repeating-linear-gradient(135deg, {{ g.platColor }}1a 0 6px, transparent 6px 13px);display:flex;align-items:center;justify-content:center;font:700 13px 'JetBrains Mono';color:{{ g.platColor }};flex:none;">{{ g.init }}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font:600 14px/1.2 'Space Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ g.title }}</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:6px;font:600 11px 'JetBrains Mono';">
+                  <span style="color:#ffb648;white-space:nowrap;">◆ {{ g.achievements }} trophies</span>
+                  <span style="color:var(--dim);white-space:nowrap;">{{ g.sessionsLabel }}</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none;">
+                <span style="background:{{ accent }}24;color:{{ accent }};padding:5px 10px;border-radius:8px;font:600 11.5px 'JetBrains Mono';white-space:nowrap;">{{ g.time }}</span>
+                <span style="font-size:10.5px;color:var(--faint);">{{ g.lastPlayed }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isGame }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ back }}" style="position:fixed;inset:0;z-index:52;background:color-mix(in oklab, var(--bg,#0b0d12) 58%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:42px 24px;overflow-y:auto;">
+      <div onClick="{{ stopProp }}" style="width:100%;max-width:880px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:26px 28px;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">
+          <div style="width:58px;height:58px;border-radius:14px;background:{{ gameDetail.platColor }}1f;background-image:repeating-linear-gradient(135deg, {{ gameDetail.platColor }}1a 0 7px, transparent 7px 15px);display:flex;align-items:center;justify-content:center;font:700 17px 'JetBrains Mono';color:{{ gameDetail.platColor }};flex:none;">{{ gameDetail.init }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font:700 24px 'Space Grotesk';letter-spacing:-.02em;">{{ gameDetail.title }}</div>
+            <div style="margin-top:6px;"><span style="background:{{ gameDetail.platColor }}1f;color:{{ gameDetail.platColor }};padding:3px 9px;border-radius:7px;font:600 11px 'JetBrains Mono';">{{ gameDetail.platLabel }}</span></div>
+          </div>
+          <button onClick="{{ back }}" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;" style-hover="color:var(--text);border-color:var(--border2);">✕</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
+          <sc-for list="{{ gameDetail.tiles }}" as="t" hint-placeholder-count="6">
+            <div style="background:var(--surface2,#1b1e27);border:1px solid var(--border);border-radius:14px;padding:15px 17px;">
+              <div style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em;">{{ t.label }}</div>
+              <div style="font:700 22px 'Space Grotesk';margin-top:7px;letter-spacing:-.01em;">{{ t.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;align-items:start;">
+          <div>
+            <span style="display:block;font:600 11px 'JetBrains Mono';letter-spacing:.2em;text-transform:uppercase;color:#2fd4a8;margin-bottom:13px;">Top Players</span>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <sc-for list="{{ gameDetail.players }}" as="p" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--border,rgba(255,255,255,.06));">
+                  <span style="width:18px;font:600 12px 'JetBrains Mono';color:var(--faint);flex:none;">{{ p.rankLabel }}</span>
+                  <div style="width:36px;height:36px;border-radius:11px;background:{{ p.color }};display:flex;align-items:center;justify-content:center;font:600 12.5px 'Space Grotesk';color:#fff;flex:none;">{{ p.initials }}</div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font:600 13px 'Space Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</div>
+                    <div style="font-size:11px;color:var(--dim);margin-top:2px;">{{ p.sessionsLabel }} · <span style="color:#ffb648;">◆ {{ p.trophies }}</span></div>
+                  </div>
+                  <span style="background:{{ accent }}24;color:{{ accent }};padding:4px 9px;border-radius:8px;font:600 11px 'JetBrains Mono';white-space:nowrap;flex:none;">{{ p.time }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div>
+            <span style="display:block;font:600 11px 'JetBrains Mono';letter-spacing:.2em;text-transform:uppercase;color:#2fd4a8;margin-bottom:13px;">Trophies</span>
+            <sc-if value="{{ gameDetail.hasTrophies }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <sc-for list="{{ gameDetail.trophies }}" as="t" hint-placeholder-count="3">
+                  <div onClick="{{ t.onOpen }}" style="display:flex;align-items:center;gap:13px;padding:11px 6px;margin:0 -6px;border-bottom:1px solid var(--border,rgba(255,255,255,.06));cursor:pointer;border-radius:10px;" style-hover="background:var(--surfaceHover,rgba(255,255,255,.03));">
+                    <div style="width:42px;height:42px;border-radius:11px;background:{{ t.rarityColor }}1a;border:1px solid {{ t.rarityColor }}40;display:flex;align-items:center;justify-content:center;flex:none;">
+                      <div style="width:13px;height:13px;background:{{ t.rarityColor }};transform:rotate(45deg);border-radius:3px;"></div>
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font:600 13.5px 'Space Grotesk';color:var(--accent);">{{ t.name }}</div>
+                      <div style="font-size:11.5px;color:var(--dim);margin-top:2px;">{{ t.desc }}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1.25;">
+                      <span style="font:700 12.5px 'JetBrains Mono';color:{{ t.rarityColor }};">{{ t.pctLabel }}</span>
+                      <span style="font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;">{{ t.rarityLabel }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ gameDetail.noTrophies }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--surface2,#1b1e27);border:1px dashed var(--border2);border-radius:14px;padding:24px;text-align:center;font-size:12.5px;color:var(--faint);">No tracked trophies for this game yet</div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ activeTrophyOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeTrophy }}" style="position:fixed;inset:0;z-index:60;background:color-mix(in oklab, var(--bg,#0b0d12) 55%, transparent);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);display:flex;align-items:center;justify-content:center;padding:24px;">
+      <div onClick="{{ stopProp }}" style="width:100%;max-width:420px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:26px;text-align:center;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">
+        <div style="width:78px;height:78px;margin:4px auto 0;border-radius:20px;background:{{ activeTrophy.rarityColor }}1a;border:1px solid {{ activeTrophy.rarityColor }}55;display:flex;align-items:center;justify-content:center;">
+          <div style="width:26px;height:26px;background:{{ activeTrophy.rarityColor }};transform:rotate(45deg);border-radius:5px;"></div>
+        </div>
+        <div style="font:700 19px 'Space Grotesk';margin-top:16px;letter-spacing:-.01em;">{{ activeTrophy.name }}</div>
+        <div style="display:inline-flex;align-items:center;gap:8px;margin-top:9px;">
+          <span style="background:{{ activeTrophy.rarityColor }}22;color:{{ activeTrophy.rarityColor }};padding:3px 10px;border-radius:7px;font:600 11px 'JetBrains Mono';text-transform:uppercase;letter-spacing:.06em;">{{ activeTrophy.rarityLabel }}</span>
+          <span style="font:700 13px 'JetBrains Mono';color:{{ activeTrophy.rarityColor }};">{{ activeTrophy.pctLabel }}</span>
+        </div>
+        <div style="font-size:13px;color:var(--dim);margin-top:14px;line-height:1.5;">{{ activeTrophy.desc }}</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--dim);flex-wrap:wrap;">
+          <span style="font-weight:600;color:var(--text);">{{ activeTrophy.game }}</span>
+          <span style="background:{{ activeTrophy.platColor }}1f;color:{{ activeTrophy.platColor }};padding:2px 8px;border-radius:6px;font:600 10px 'JetBrains Mono';">{{ activeTrophy.platLabel }}</span>
+          <span style="color:var(--faint);">·</span>
+          <span style="color:{{ activeTrophy.playerColor }};font-weight:600;">{{ activeTrophy.player }}</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;defaultTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#6c5cff&quot;,&quot;options&quot;:[&quot;#6c5cff&quot;,&quot;#2dd4bf&quot;,&quot;#f0883e&quot;,&quot;#ff5d8f&quot;,&quot;#5a7bff&quot;],&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, period: 'week', accountIdx: 0, accountMenuOpen: false, histFilter: 'all', histProfile: 'all', histMenuOpen: false, view: 'dashboard', activeGameKey: null, prevView: 'dashboard', activeTrophy: null };
+
+  plats = {
+    ps3:  { label: 'PS3',    color: '#5a7bff' },
+    vita: { label: 'VITA',   color: '#16c3b0' },
+    n3ds: { label: '3DS',    color: '#ff5d6c' },
+    swi:  { label: 'SWITCH', color: '#ff7a3d' },
+  };
+
+  accounts = [
+    {
+      name: 'Evlring', color: '#6c5cff', plat: 'ps3', totalLabel: '116h',
+      platDist: [['ps3', 80, '27h 45m'], ['n3ds', 12, '4h 16m'], ['swi', 8, '2h 46m']],
+      games: [
+        ['Red Dead Redemption', 'ps3', 'RD', 8, 42, '9h 12m', '2h ago'],
+        ['Overwatch', 'ps3', 'OW', 9, 74, '25h 18m', '1d ago'],
+        ['inFamous', 'ps3', 'IF', 6, 18, '1h 12m', '3d ago'],
+        ['Far Cry 3', 'ps3', 'FC', 3, 11, '47m', '3d ago'],
+        ['Syndicate', 'ps3', 'SY', 1, 6, '24m', '1d ago'],
+        ['FIFA Street', 'ps3', 'FS', 1, 3, '13m', '1d ago'],
+        ['The Last of Us', 'ps3', 'TL', 1, 5, '3m', '4d ago'],
+        ['KILLZONE', 'ps3', 'KZ', 1, 2, '2m', '4d ago'],
+      ],
+      timeline: [
+        ['Jun 25', '20:14', 'session', 'Red Dead Redemption', 'ps3', '1h 50m'],
+        ['Jun 25', '10:51', 'trophy', 'FIFA Street', 'ps3', 'Got any Nutmeg?', 'Panna your first opponent', 90.7],
+        ['Jun 24', '21:37', 'trophy', 'Red Dead Redemption', 'ps3', 'Land of Opportunity', 'Complete the main story', 14.7],
+        ['Jun 24', '20:40', 'trophy', 'Red Dead Redemption', 'ps3', 'Horse Sense', 'Tame and break a wild horse', 9.3],
+        ['Jun 24', '18:30', 'trophy', 'Syndicate', 'ps3', 'Welcome to Eurocorp', 'Complete "Awakening"', 82.2],
+        ['Jun 24', '18:05', 'session', 'Syndicate', 'ps3', '24m'],
+        ['Jun 24', '15:45', 'session', 'Far Cry 3', 'ps3', '47m'],
+        ['Jun 22', '21:14', 'trophy', 'Far Cry 3', 'ps3', 'First Blood', 'Kill an enemy for the first time', 86.7],
+        ['Jun 22', '20:53', 'session', 'inFamous', 'ps3', '1h 12m'],
+        ['Jun 22', '19:30', 'session', 'Overwatch', 'ps3', '2h 05m'],
+      ],
+    },
+    {
+      name: 'Nellrun', color: '#ff7a3d', plat: 'swi', totalLabel: '34h',
+      platDist: [['swi', 70, '24h 22m'], ['ps3', 20, '6h 58m'], ['n3ds', 10, '3h 28m']],
+      games: [
+        ['NieR Replicant', 'swi', 'NR', 9, 38, '20h 19m', '3d ago'],
+        ['Clair Obscur: Expedition 33', 'swi', 'CO', 15, 9, '12h 30m', '5h ago'],
+        ['FINAL FANTASY XVI', 'swi', 'FF', 5, 21, '6h 56m', '1d ago'],
+        ['Hyrule Warriors', 'swi', 'HW', 5, 14, '4h 13m', '2h ago'],
+        ['Path of Exile 2', 'swi', 'PE', 2, 7, '2h 46m', '6d ago'],
+        ["Luigi's Mansion 3", 'swi', 'LM', 9, 12, '4h 14m', '1w ago'],
+        ['Mass Effect Legendary Edition', 'swi', 'ME', 1, 4, '18m', '1d ago'],
+      ],
+      timeline: [
+        ['Jun 25', '19:34', 'session', 'Mass Effect Legendary Edition', 'swi', '18m'],
+        ['Jun 23', '18:05', 'session', 'Hyrule Warriors', 'swi', '57m'],
+        ['Jun 22', '20:55', 'trophy', 'NieR Replicant', 'swi', 'Lingering Memories', 'Recover a fragment of a lost memory', 20.5],
+        ['Jun 22', '20:37', 'trophy', 'NieR Replicant', 'swi', 'Book Burner', 'Defeat Grimoire Noir within 90 seconds', 15.3],
+        ['Jun 22', '20:11', 'trophy', 'NieR Replicant', 'swi', 'Combo Master', 'Pull off a 100-hit combo', 27.4],
+        ['Jun 22', '19:49', 'session', 'NieR Replicant', 'swi', '1h 49m'],
+        ['Jun 21', '22:45', 'trophy', 'NieR Replicant', 'swi', 'Boss of the Junk Heap', 'Defeat P-33 within 4m 30s', 17.3],
+        ['Jun 21', '18:43', 'session', 'Hyrule Warriors', 'swi', '1h 35m'],
+        ['Jun 19', '22:23', 'session', 'Path of Exile 2', 'swi', '1h 24m'],
+        ['Jun 19', '16:24', 'session', 'Clair Obscur: Expedition 33', 'swi', '2h 40m'],
+      ],
+    },
+  ];
+
+  initials(name) {
+    const c = name.replace(/[^A-Za-z0-9]/g, '');
+    return (c.slice(0, 2) || '??').toUpperCase();
+  }
+
+  plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+
+  rarity(p) {
+    if (p < 2) return { label: 'Legendary', color: '#ffb648' };
+    if (p < 8) return { label: 'Epic', color: '#b06bff' };
+    if (p < 20) return { label: 'Rare', color: '#4a9eff' };
+    return { label: 'Common', color: '#8a8f9c' };
+  }
+
+  playerPool = [
+    ['Evlring', '#6c5cff'], ['Nellrun', '#ff7a3d'], ['RavenKav', '#16c3b0'],
+    ['Ashe-raddo', '#b06bff'], ['FireGoWithMe', '#ff5d6c'], ['DAMNACIDGANG', '#3fbf7f'],
+  ];
+
+  parseDur(s) {
+    let m = 0; const h = s.match(/(\d+)h/), mm = s.match(/(\d+)m/);
+    if (h) m += parseInt(h[1], 10) * 60; if (mm) m += parseInt(mm[1], 10); return m;
+  }
+  formatMin(m) {
+    const H = Math.floor(m / 60), M = m % 60;
+    if (H === 0) return M + 'm'; if (M === 0) return H + 'h';
+    return H + 'h ' + (M < 10 ? '0' : '') + M + 'm';
+  }
+
+  buildPlayers(title) {
+    return this.playerPool.map(p => {
+      const r = this.seedRand(this.hash(title + '|' + p[0]) >>> 0);
+      return { name: p[0], color: p[1], min: Math.round(35 + r * 545),
+        sess: Math.round(1 + r * 14), tro: Math.round(2 + r * 46) };
+    }).sort((a, b) => b.min - a.min).slice(0, 4).map((p, i) => ({
+      name: p.name, color: p.color, initials: this.initials(p.name),
+      time: this.formatMin(p.min), sessionsLabel: this.plural(p.sess, 'session'),
+      trophies: p.tro, rankLabel: String(i + 1).padStart(2, '0'),
+    }));
+  }
+
+  buildGameDetail(title) {
+    let row = null;
+    const cur = this.accounts[this.state.accountIdx];
+    const fcur = cur.games.find(x => x[0] === title);
+    if (fcur) row = fcur;
+    else for (const a of this.accounts) { const f = a.games.find(x => x[0] === title); if (f) { row = f; break; } }
+    if (!row) return null;
+    const pm = this.plats[row[1]];
+    const totalMin = this.parseDur(row[5]);
+    const avg = this.formatMin(Math.round(totalMin / Math.max(1, row[3])));
+    const players = this.buildPlayers(title);
+    const trophies = [];
+    this.accounts.forEach(a => a.timeline.forEach(r => {
+      if (r[2] === 'trophy' && r[3] === title) {
+        const rr = this.rarity(r[7]);
+        trophies.push({ time: r[1], date: r[0], name: r[5], desc: r[6], pctLabel: r[7] + '%',
+          rarityColor: rr.color, rarityLabel: rr.label, player: a.name, playerColor: a.color,
+          onOpen: () => this.setState({ activeTrophy: { name: r[5], desc: r[6], pctLabel: r[7] + '%',
+            rarityColor: rr.color, rarityLabel: rr.label, game: title, platLabel: pm.label,
+            platColor: pm.color, player: a.name, playerColor: a.color } }) });
+      }
+    }));
+    const tiles = [
+      { label: 'Total time', value: row[5] }, { label: 'Sessions', value: String(row[3]) },
+      { label: 'Trophies', value: String(row[4]) }, { label: 'Avg session', value: avg },
+      { label: 'Players', value: String(players.length) }, { label: 'Last played', value: row[6] },
+    ];
+    return { title, init: row[2], platLabel: pm.label, platColor: pm.color,
+      tiles, players, trophies, hasTrophies: trophies.length > 0, noTrophies: trophies.length === 0 };
+  }
+
+  hash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; }
+  seedRand(s) { let t = (s + 0x6D2B79F5) >>> 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+
+  formatH(h) {
+    const H = Math.floor(h), M = Math.round((h - H) * 60);
+    if (H >= 1000) return H.toLocaleString() + 'h';
+    if (H === 0) return M + 'm';
+    if (M === 0) return H + 'h';
+    return H + 'h ' + M + 'm';
+  }
+
+  buildChart(seed, period) {
+    const MON = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const defs = {
+      today: { n: 24, base: 0.85, lab: i => String(i).padStart(2, '0'), show: i => i % 4 === 0 },
+      week:  { n: 7,  base: 4.6,  lab: i => MON[i], show: () => true },
+      month: { n: 30, base: 3.3,  lab: i => String(i + 1), show: i => i % 5 === 0 },
+      year:  { n: 12, base: 62,   lab: i => MO[i], show: () => true },
+      all:   { n: 4,  base: 690,  lab: i => String(2023 + i), show: () => true },
+    };
+    const d = defs[period];
+    const vals = [];
+    for (let i = 0; i < d.n; i++) {
+      const r = this.seedRand((this.hash(seed + '|' + period) + i * 2654435761) >>> 0);
+      let m = 1;
+      if (period === 'today') m = i < 6 ? 0.12 : i < 11 ? 0.4 : i < 16 ? 0.7 : i < 23 ? 1 : 0.3;
+      vals.push(d.base * (0.32 + 1.05 * r) * m);
+    }
+    const max = Math.max(...vals);
+    const total = vals.reduce((a, b) => a + b, 0);
+    let peakIdx = 0;
+    vals.forEach((v, i) => { if (v > vals[peakIdx]) peakIdx = i; });
+    const bars = vals.map((v, i) => ({
+      pct: Math.max(4, Math.round(v / max * 100)),
+      label: d.show(i) ? d.lab(i) : '',
+      tip: d.lab(i) + ' · ' + this.formatH(v),
+    }));
+    return { bars, totalLabel: this.formatH(total), peakLabel: d.lab(peakIdx) + ' · ' + this.formatH(max) };
+  }
+
+  renderVals() {
+    const theme = this.state.theme || this.props.defaultTheme || 'dark';
+    const accent = this.props.accent || '#6c5cff';
+    const faint = 'var(--faint,#5b6070)';
+    const idx = this.state.accountIdx;
+    const account = this.accounts[idx];
+
+    const periods = [
+      { key: 'today', label: 'Day' }, { key: 'week', label: 'Week' },
+      { key: 'month', label: 'Month' }, { key: 'year', label: 'Year' }, { key: 'all', label: 'All' },
+    ].map(d => {
+      const active = this.state.period === d.key;
+      return { ...d, onClick: () => this.setState({ period: d.key }),
+        bg: active ? 'var(--surface)' : 'transparent', fg: active ? 'var(--text)' : 'var(--dim)',
+        shadow: active ? '0 1px 2px rgba(0,0,0,.25)' : 'none' };
+    });
+
+    const acc = { name: account.name, initials: this.initials(account.name),
+      color: account.color, platLabel: this.plats[account.plat].label };
+    const accountsList = this.accounts.map((a, i) => ({
+      name: a.name, initials: this.initials(a.name), color: a.color,
+      platLabel: this.plats[a.plat].label, totalLabel: a.totalLabel, active: i === idx,
+      activeBg: i === idx ? 'var(--surfaceHover)' : 'transparent',
+      onSelect: () => this.setState({ accountIdx: i, accountMenuOpen: false }),
+    }));
+
+    const chart = this.buildChart(account.name, this.state.period);
+
+    let dacc = 0;
+    const donutSegs = account.platDist.map(([k, pct]) => {
+      const c = this.plats[k].color; const s = dacc; dacc += pct; return `${c} ${s}% ${dacc}%`;
+    }).join(', ');
+    const donut = `conic-gradient(${donutSegs})`;
+    const platDist = account.platDist.map(([k, pct, time]) => ({
+      label: this.plats[k].label, color: this.plats[k].color, time, pctLabel: pct + '%' }));
+
+    const mapGame = (g, i, from, withDivider, total) => {
+      const pm = this.plats[g[1]];
+      return { title: g[0], platLabel: pm.label, platColor: pm.color, init: g[2],
+        sessions: g[3], sessionsLabel: this.plural(g[3], 'session'), achievements: g[4], time: g[5], lastPlayed: g[6],
+        rankLabel: String(i + 1).padStart(2, '0'), rankColor: i < 3 ? 'var(--accent)' : faint,
+        divider: (withDivider && i === total - 1) ? '1px solid transparent' : '1px solid var(--border)',
+        onOpen: () => this.setState({ view: 'game', activeGameKey: g[0], prevView: from }) };
+    };
+    const recentList = account.games.slice(0, 5);
+    const games = recentList.map((g, i) => mapGame(g, i, 'dashboard', true, recentList.length));
+    const allGames = account.games.map((g, i) => mapGame(g, i, 'games', false, account.games.length));
+    const view = this.state.view;
+    const gameDetail = view === 'game' ? this.buildGameDetail(this.state.activeGameKey) : null;
+
+    const historyFilters = [
+      { key: 'all', label: 'All' }, { key: 'session', label: 'Sessions' }, { key: 'trophy', label: 'Trophies' },
+    ].map(d => {
+      const active = this.state.histFilter === d.key;
+      return { ...d, onClick: () => this.setState({ histFilter: d.key }),
+        bg: active ? 'var(--surface2)' : 'transparent', fg: active ? 'var(--text)' : 'var(--dim)',
+        bd: active ? 'var(--border2)' : 'var(--border)' };
+    });
+
+    const MOI = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+    let allItems = [];
+    this.accounts.forEach((a, ai) => {
+      a.timeline.forEach(r => {
+        const pm = this.plats[r[4]];
+        const parts = r[0].split(' ');
+        const sortKey = (MOI[parts[0]] || 0) * 1e6 + parseInt(parts[1], 10) * 1e4 +
+          parseInt(r[1].slice(0, 2), 10) * 100 + parseInt(r[1].slice(3, 5), 10);
+        const base = { time: r[1], date: r[0], platLabel: pm.label, platColor: pm.color,
+          playerName: a.name, playerColor: a.color, accIdx: ai, sortKey, kind: r[2] };
+        if (r[2] === 'trophy') {
+          const rr = this.rarity(r[7]);
+          allItems.push({ ...base, isTrophy: true, isSession: false, iconColor: rr.color,
+            title: r[5], titleColor: 'var(--accent)', subRest: ' · ' + r[3] + ' — ' + r[6],
+            rightMain: r[7] + '%', rightColor: rr.color, rightSub: rr.label,
+            cursor: 'pointer', onOpen: () => this.setState({ activeTrophy: { name: r[5], desc: r[6],
+              pctLabel: r[7] + '%', rarityColor: rr.color, rarityLabel: rr.label, game: r[3],
+              platLabel: pm.label, platColor: pm.color, player: a.name, playerColor: a.color } }) });
+        } else {
+          allItems.push({ ...base, isTrophy: false, isSession: true, iconColor: accent,
+            title: 'Played ' + r[3], titleColor: 'var(--text)', subRest: ' · Session',
+            rightMain: r[5], rightColor: 'var(--accent)', rightSub: 'play time',
+            cursor: 'pointer', onOpen: () => this.setState({ view: 'game', activeGameKey: r[3], prevView: 'dashboard' }) });
+        }
+      });
+    });
+    allItems = allItems
+      .filter(it => this.state.histFilter === 'all' || it.kind === this.state.histFilter)
+      .filter(it => this.state.histProfile === 'all' || it.accIdx === this.state.histProfile)
+      .sort((a, b) => b.sortKey - a.sortKey);
+
+    const profileOptions = [{ label: 'All profiles', value: 'all' },
+      ...this.accounts.map((a, i) => ({ label: a.name, value: i }))
+    ].map(o => ({ label: o.label, active: this.state.histProfile === o.value,
+      activeBg: this.state.histProfile === o.value ? 'var(--surfaceHover)' : 'transparent',
+      onSelect: () => this.setState({ histProfile: o.value, histMenuOpen: false }) }));
+    const histProfileLabel = this.state.histProfile === 'all' ? 'All profiles' : this.accounts[this.state.histProfile].name;
+
+    const historyGroups = [];
+    allItems.forEach(it => {
+      let g = historyGroups[historyGroups.length - 1];
+      if (!g || g.date !== it.date) { g = { date: it.date, items: [] }; historyGroups.push(g); }
+      g.items.push(it);
+    });
+    historyGroups.forEach(g => {
+      const t = g.items.filter(i => i.isTrophy).length, s = g.items.length - t;
+      const parts = [];
+      if (s) parts.push(this.plural(s, 'session'));
+      if (t) parts.push(this.plural(t, 'trophy').replace('trophys', 'trophies'));
+      g.summary = parts.join(' · ');
+    });
+
+    return {
+      theme, accent,
+      themeBtn: theme === 'dark' ? 'Light' : 'Dark',
+      toggleTheme: () => this.setState({ theme: (theme === 'dark' ? 'light' : 'dark') }),
+      lastPoll: '2m ago',
+      acc, accountsList,
+      accountMenuOpen: this.state.accountMenuOpen,
+      toggleAccountMenu: () => this.setState(s => ({ accountMenuOpen: !s.accountMenuOpen })),
+      closeAccountMenu: () => this.setState({ accountMenuOpen: false }),
+      periods, chart, donut, platDist,
+      games, allGames,
+      openGames: () => this.setState({ view: 'games', prevView: 'dashboard' }),
+      back: () => this.setState({ view: this.state.prevView || 'dashboard' }),
+      isDashboard: view === 'dashboard', isGames: view === 'games', isGame: view === 'game',
+      gameDetail,
+      activeTrophy: this.state.activeTrophy, activeTrophyOpen: !!this.state.activeTrophy,
+      closeTrophy: () => this.setState({ activeTrophy: null }),
+      stopProp: (e) => e.stopPropagation(),
+      historyFilters, historyGroups,
+      profileOptions, histProfileLabel,
+      profileMenuOpen: this.state.histMenuOpen,
+      toggleProfileMenu: () => this.setState(s => ({ histMenuOpen: !s.histMenuOpen })),
+      closeProfileMenu: () => this.setState({ histMenuOpen: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>
