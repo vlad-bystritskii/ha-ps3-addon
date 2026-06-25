@@ -1,5 +1,5 @@
 name: Playtime Collector
-version: "0.9.1"
+version: "0.9.2"
 slug: playtime_collector
 description: Cross-platform console playtime & trophies (PS3, PS Vita) — web dashboard, settings & people UI + JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addon
@@ -20,6 +20,7 @@ ports_description:
 # granting elevated privileges silently — enable when wiring up POST /settings.
 map:
   - data:rw
+  - share:rw
 options:
   ps3_host: ""
   playtime_source: "auto"

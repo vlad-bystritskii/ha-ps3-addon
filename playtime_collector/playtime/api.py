@@ -27,6 +27,7 @@ log = logging.getLogger("playtime")
 
 @asynccontextmanager
 async def lifespan(app):
+    config.migrate_to_share()  # keep history when reinstalling / switching install type
     db.init_db()
     db.apply_title_overrides(config.TITLE_OVERRIDES)
     log.info("playtime-collector starting · PS3 %s · source %s · poll %ss · %d title override(s)",

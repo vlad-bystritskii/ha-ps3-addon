@@ -64,8 +64,34 @@ HTTP_PORT = int(get("http_port", "HTTP_PORT", 3301))
 
 # /data is provided by HAOS add-ons; otherwise store next to the code.
 data_dir = Path("/data") if Path("/data").is_dir() else Path(__file__).resolve().parent.parent / "data"
-DB_PATH = get("db_path", "DB_PATH", str(data_dir / "playtime.db"))
-ICON_DIR = get("icon_dir", "ICON_DIR", str(data_dir / "icons"))
+
+# The /data volume is keyed by the add-on *slug*, so reinstalling — or switching
+# between a local and a GitHub-repository install — would start from an empty
+# database. To keep playtime history across that, store under the shared,
+# slug-independent /share/playtime when it is mapped (map: share:rw), migrating an
+# existing /data database over exactly once (see migrate_to_share, run at startup).
+share_dir = Path("/share/playtime")
+_use_share = Path("/share").is_dir()
+store_dir = share_dir if _use_share else data_dir
+
+DB_PATH = get("db_path", "DB_PATH", str(store_dir / "playtime.db"))
+ICON_DIR = get("icon_dir", "ICON_DIR", str(store_dir / "icons"))
+
+
+def migrate_to_share():
+    """One-time copy of a private /data store into shared /share/playtime so the
+    history survives reinstalling / changing the add-on install type. No-op when
+    /share isn't mapped, or the shared DB already exists (already migrated)."""
+    if not _use_share:
+        return
+    import shutil
+    share_dir.mkdir(parents=True, exist_ok=True)
+    src_db, dst_db = data_dir / "playtime.db", share_dir / "playtime.db"
+    if src_db.exists() and not dst_db.exists():
+        shutil.copy2(src_db, dst_db)
+        src_icons, dst_icons = data_dir / "icons", share_dir / "icons"
+        if src_icons.is_dir() and not dst_icons.exists():
+            shutil.copytree(src_icons, dst_icons)
 
 # Optional PSN NPSSO token to enrich trophies with global rarity (% of players).
 # Rarity is a PSN-server stat, not on the console; leave empty to disable.
