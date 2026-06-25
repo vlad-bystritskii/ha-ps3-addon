@@ -363,13 +363,29 @@ async def refresh_rarity():
     if not config.PSN_NPSSO:
         return
     npcommids = db.distinct_npcommids()
+    donors = config.RARITY_ACCOUNTS
     enriched = 0
     for npcommid in npcommids:
-        try:
-            rarity = await asyncio.to_thread(psn.fetch_title_rarity, config.PSN_NPSSO, npcommid)
-        except Exception:
-            log.exception("PSN rarity fetch failed for %s", npcommid)
-            continue
+        rarity = {}
+        if donors:
+            # Try each donor until one owns this title and yields earn rates.
+            for donor in donors:
+                try:
+                    rarity = await asyncio.to_thread(
+                        psn.fetch_title_rarity, config.PSN_NPSSO, npcommid, donor)
+                except Exception:
+                    log.exception("PSN rarity fetch failed for %s via donor %s", npcommid, donor)
+                    continue
+                if rarity:
+                    log.debug("rarity for %s satisfied by donor %s", npcommid, donor)
+                    break
+        else:
+            # No donors configured — keep the legacy authenticated-account behaviour.
+            try:
+                rarity = await asyncio.to_thread(psn.fetch_title_rarity, config.PSN_NPSSO, npcommid)
+            except Exception:
+                log.exception("PSN rarity fetch failed for %s", npcommid)
+                rarity = {}
         if rarity:
             db.upsert_rarity(npcommid, rarity)
             enriched += 1

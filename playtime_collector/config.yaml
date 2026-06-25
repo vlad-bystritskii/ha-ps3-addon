@@ -1,5 +1,5 @@
 name: Playtime Collector
-version: "0.9.2"
+version: "0.9.3"
 slug: playtime_collector
 description: Cross-platform console playtime & trophies (PS3, PS Vita) — web dashboard, settings & people UI + JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addon
@@ -30,6 +30,7 @@ options:
   ignore_accounts: "Vlad"
   auth_token: ""
   psn_npsso: ""
+  rarity_accounts: []
   vita_host: ""
   vita_port: 1337
   vita_account: "vita"
@@ -69,6 +70,8 @@ schema:
   ignore_accounts: str
   auth_token: str
   psn_npsso: "password?"
+  rarity_accounts:
+    - str
   vita_host: "str?"
   vita_port: int
   vita_account: "str?"

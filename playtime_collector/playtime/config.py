@@ -99,6 +99,18 @@ PSN_NPSSO = get("psn_npsso", "PSN_NPSSO", "")
 # How often to refresh PSN rarity, in seconds (changes slowly).
 RARITY_INTERVAL = int(get("rarity_interval", "RARITY_INTERVAL", 86400))
 
+# "Donor" PSN accounts to fetch trophy rarity through. The configured PSN_NPSSO
+# account rarely owns the games on a jailbroken console, so PSN returns no earn
+# rates for them. High-completion trophy hunters (from psnprofiles leaderboards)
+# collectively own ~every game, so we query rarity through them. Each entry is a
+# PSN online-id (username, e.g. "ginko765") or a numeric account-id. List, or
+# comma-separated string. Empty = keep the legacy me()-only behaviour.
+_rarity_accounts_raw = get("rarity_accounts", "RARITY_ACCOUNTS", [])
+if isinstance(_rarity_accounts_raw, list):
+    RARITY_ACCOUNTS = [str(a).strip() for a in _rarity_accounts_raw if str(a).strip()]
+else:
+    RARITY_ACCOUNTS = [a.strip() for a in str(_rarity_accounts_raw).split(",") if a.strip()]
+
 # How often to log a "last 24h" activity summary, in seconds.
 SUMMARY_INTERVAL = int(get("summary_interval", "SUMMARY_INTERVAL", 86400))
 

@@ -18,6 +18,8 @@ import io
 import json
 import logging
 import struct
+from datetime import datetime, timezone
+from pathlib import Path
 
 from . import config, db
 from .titles import fix_title
@@ -76,6 +78,33 @@ def _ignored(title_id):
     return title_id in config.VITA_IGNORE_TITLES or title_id.startswith("NPXS")
 
 
+def _cache_icon(ftp, title_id):
+    """Fetch the Vita app's icon0.png over FTP and cache it where /game-icon serves
+    it (ICON_DIR/games/<titleId>). Cached once; skipped if already present or absent."""
+    path = Path(config.ICON_DIR) / "games" / title_id
+    if path.exists():
+        return
+    buf = io.BytesIO()
+    try:
+        ftp.retrbinary("RETR ux0:/app/%s/sce_sys/icon0.png" % title_id, buf.write)
+    except ftplib.all_errors:
+        return
+    data = buf.getvalue()
+    if data[:8] != b"\x89PNG\r\n\x1a\n":  # only store a real PNG
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
+def _ended_iso(rec):
+    """Real session-end time from the kernel's endedAt (Unix seconds, UTC). Falls
+    back to 'now' if the field is missing or implausible (e.g. unset Vita clock)."""
+    ended = int(rec.get("endedAt") or 0)
+    if ended >= 1000000000:  # ~2001+, sane wall clock
+        return datetime.fromtimestamp(ended, tz=timezone.utc).isoformat()
+    return db.now_iso()
+
+
 def _drain_once():
     """One FTP pass: claim + read + ingest + delete. Runs in a worker thread.
 
@@ -115,8 +144,9 @@ def _drain_once():
             if not title_id or seconds <= 0 or _ignored(title_id):
                 continue
             title = _resolve_title(ftp, title_id)
+            _cache_icon(ftp, title_id)
             db.insert_closed_session(
-                "psvita", config.VITA_ACCOUNT, title_id, title, seconds, db.now_iso())
+                "psvita", config.VITA_ACCOUNT, title_id, title, seconds, _ended_iso(rec))
             inserted += 1
             log.info("⏹ %s — %s · %ds (vita)", config.VITA_ACCOUNT, title or title_id, seconds)
 

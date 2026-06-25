@@ -344,12 +344,21 @@ function playtimeHTML(a){
  return h;
 }
 
+/* Game cover icon with graceful fallback: the striped platform-tinted initials box
+   is the base layer; a real cover <img src="game-icon/{titleId}"> (relative for HA
+   ingress) is overlaid on top and hides itself onerror (missing/404 icon), revealing
+   the initials box underneath — so it never shows a broken-image glyph. */
+function gameIconHTML(titleId,title,color,size,radius,fontSize,s1,s2){
+ const box='<div style="position:absolute;inset:0;background:'+color+'1f;background-image:repeating-linear-gradient(135deg, '+color+'1a 0 '+s1+'px, transparent '+s1+'px '+s2+'px);display:flex;align-items:center;justify-content:center;font:700 '+fontSize+'px \'JetBrains Mono\';color:'+color+';">'+esc(initials(title))+'</div>';
+ const img=titleId?('<img src="game-icon/'+encodeURIComponent(titleId)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">'):'';
+ return '<div style="position:relative;width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;overflow:hidden;flex:none;border:1px solid '+color+'55;">'+box+img+'</div>';
+}
 function gameRowHTML(g,i,withDivider,total){
  const pm=plat(g.platform);const rankColor=i<3?'var(--accent)':'var(--faint,#5b6070)';
  const divider=(withDivider&&i===total-1)?'1px solid transparent':'1px solid var(--border)';
  return '<div onclick="openGame(\''+esc(g.platform)+'\',\''+esc(g.titleId)+'\')" style="display:flex;align-items:center;gap:12px;padding:12px 6px;margin:0 -6px;border-bottom:'+divider+';cursor:pointer;border-radius:10px;">'
   +'<span style="width:18px;font:600 12px \'JetBrains Mono\';color:'+rankColor+';flex:none;">'+String(i+1).padStart(2,'0')+'</span>'
-  +'<div style="width:42px;height:42px;border-radius:10px;background:'+pm.color+'1f;background-image:repeating-linear-gradient(135deg, '+pm.color+'1a 0 6px, transparent 6px 13px);display:flex;align-items:center;justify-content:center;font:700 12px \'JetBrains Mono\';color:'+pm.color+';flex:none;">'+esc(initials(g.title))+'</div>'
+  +gameIconHTML(g.titleId,g.title,pm.color,42,10,12,6,13)
   +'<div style="flex:1;min-width:0;">'
   +'<div style="font:600 13.5px/1.2 \'Space Grotesk\';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(g.title)+'</div>'
   +'<div style="display:flex;align-items:center;gap:8px;margin-top:5px;">'
@@ -447,7 +456,7 @@ function gameCardHTML(g,i){
  const pm=plat(g.platform);const rankColor=i<3?'var(--accent)':'var(--faint,#5b6070)';
  return '<div onclick="openGame(\''+esc(g.platform)+'\',\''+esc(g.titleId)+'\')" style="display:flex;align-items:center;gap:14px;background:var(--surface2,#1b1e27);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;">'
   +'<span style="width:20px;font:600 12.5px \'JetBrains Mono\';color:'+rankColor+';flex:none;">'+String(i+1).padStart(2,'0')+'</span>'
-  +'<div style="width:46px;height:46px;border-radius:11px;background:'+pm.color+'1f;background-image:repeating-linear-gradient(135deg, '+pm.color+'1a 0 6px, transparent 6px 13px);display:flex;align-items:center;justify-content:center;font:700 13px \'JetBrains Mono\';color:'+pm.color+';flex:none;">'+esc(initials(g.title))+'</div>'
+  +gameIconHTML(g.titleId,g.title,pm.color,46,11,13,6,13)
   +'<div style="flex:1;min-width:0;"><div style="font:600 14px/1.2 \'Space Grotesk\';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(g.title)+'</div>'
   +'<div style="display:flex;align-items:center;gap:10px;margin-top:6px;font:600 11px \'JetBrains Mono\';">'
   +'<span style="color:#ffb648;white-space:nowrap;">◆ '+(g.trophies||0)+' trophies</span>'
@@ -516,7 +525,7 @@ function gameModalHTML(){
  let h='<div onclick="back()" style="position:fixed;inset:0;z-index:52;background:color-mix(in oklab, var(--bg,#0b0d12) 58%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:42px 24px;overflow-y:auto;">';
  h+='<div onclick="event.stopPropagation()" style="width:100%;max-width:880px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:26px 28px;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">';
  h+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">'
-  +'<div style="width:58px;height:58px;border-radius:14px;background:'+pm.color+'1f;background-image:repeating-linear-gradient(135deg, '+pm.color+'1a 0 7px, transparent 7px 15px);display:flex;align-items:center;justify-content:center;font:700 17px \'JetBrains Mono\';color:'+pm.color+';flex:none;">'+esc(g.init)+'</div>'
+  +gameIconHTML(state.activeGame?state.activeGame.titleId:'',g.title,pm.color,58,14,17,7,15)
   +'<div style="flex:1;min-width:0;"><div style="font:700 24px \'Space Grotesk\';letter-spacing:-.02em;">'+esc(g.title)+'</div>'
   +'<div style="margin-top:6px;"><span style="background:'+pm.color+'1f;color:'+pm.color+';padding:3px 9px;border-radius:7px;font:600 11px \'JetBrains Mono\';">'+esc(pm.label)+'</span></div></div>'
   +'<button onclick="back()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">✕</button></div>';
