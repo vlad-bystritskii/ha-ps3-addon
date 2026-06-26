@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.10
+
+- **Trophy unlocks from all platforms in History** — the activity feed was
+  hardcoded to PS3, so Vita trophy unlocks only appeared in the Trophies view.
+  History now merges trophy unlocks from every platform (each with its own
+  platform badge), alongside sessions.
+
 ## 0.9.9
 
 - **Trophies view** — a new "Trophies" page (header nav) shows every trophy set as

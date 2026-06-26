@@ -102,8 +102,9 @@ def build_data():
         "account": r["account"], "game": r["game"], "npcommid": r["npcommid"],
         "trophyId": r["trophy_id"], "name": r["name"], "detail": r["detail"],
         "grade": r["grade"], "earnedAt": r["earned_at"], "rate": r["earned_rate"],
+        "platform": r["platform"],
         "iconUrl": _trophy_icon_url(r["account"], r["npcommid"], r["trophy_id"]),
-    } for r in db.recent_trophy_unlocks(config.PLATFORM, 200)]
+    } for r in db.recent_trophy_unlocks(None, 200)]
 
     trophies = [{
         "account": t["account"], "title": t["title"], "platform": t["platform"],
@@ -250,8 +251,8 @@ function buildHistory(){
  D.sessions.forEach(s=>{const oi=ownerIdx(s.platform,s.account);const pn=oi>=0?D.accounts[oi].name:s.account;
    items.push({kind:'session',dt:s.started,platform:s.platform,title:s.title,titleId:s.titleId,
      ownerIdx:oi,playerName:pn,playerColor:palColor(pn),account:s.account,seconds:s.seconds});});
- D.feed.forEach(f=>{const oi=ownerIdx('ps3',f.account);const pn=oi>=0?D.accounts[oi].name:f.account;
-   items.push({kind:'trophy',dt:f.earnedAt,platform:'ps3',game:f.game,ownerIdx:oi,
+ D.feed.forEach(f=>{const fp=f.platform||'ps3';const oi=ownerIdx(fp,f.account);const pn=oi>=0?D.accounts[oi].name:f.account;
+   items.push({kind:'trophy',dt:f.earnedAt,platform:fp,game:f.game,ownerIdx:oi,
      playerName:pn,playerColor:palColor(pn),name:f.name,desc:f.detail,rate:f.rate,
      npcommid:f.npcommid,trophyId:f.trophyId,account:f.account,iconUrl:f.iconUrl});});
  let f=items.filter(it=>state.histFilter==='all'||it.kind===state.histFilter);

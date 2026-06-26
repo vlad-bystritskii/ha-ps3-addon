@@ -565,18 +565,23 @@ def trophies_earned_since(since_iso):
 
 def recent_trophy_unlocks(platform, limit=50):
     """Most recently unlocked trophies across all accounts, with game title +
-    global rarity, for the activity feed."""
+    global rarity, for the activity feed. platform=None spans every platform."""
+    where = "ti.unlocked=1 AND ti.earned_at IS NOT NULL"
+    params = []
+    if platform:
+        where += " AND ti.platform=?"
+        params.append(platform)
+    params.append(limit)
     with lock:
         rows = conn.execute(
-            "SELECT ti.account, ti.npcommid, ti.trophy_id, ti.name, ti.detail, "
+            "SELECT ti.platform, ti.account, ti.npcommid, ti.trophy_id, ti.name, ti.detail, "
             "ti.grade, ti.earned_at, tr.title AS game, ra.earned_rate "
             "FROM trophy_items ti "
             "LEFT JOIN trophies tr ON tr.platform=ti.platform AND tr.account=ti.account "
             "AND tr.npcommid=ti.npcommid "
             "LEFT JOIN trophy_rarity ra ON ra.npcommid=ti.npcommid AND ra.trophy_id=ti.trophy_id "
-            "WHERE ti.unlocked=1 AND ti.earned_at IS NOT NULL AND ti.platform=? "
-            "ORDER BY ti.earned_at DESC LIMIT ?",
-            (platform, limit),
+            "WHERE " + where + " ORDER BY ti.earned_at DESC LIMIT ?",
+            params,
         ).fetchall()
     return [dict(r) for r in rows]
 
