@@ -113,13 +113,23 @@ def _cache_icon(ftp, title_id):
         return
     data = _fetch_gametdb_cover(title_id)
     if not data:
-        buf = io.BytesIO()
-        try:
-            ftp.retrbinary("RETR ux0:/app/%s/sce_sys/icon0.png" % title_id, buf.write)
-        except ftplib.all_errors:
-            return
-        data = buf.getvalue()
-        if data[:8] != b"\x89PNG\r\n\x1a\n":  # only store a real PNG
+        # GameTDB has no PS Vita cover for this title — fall back to the game's own
+        # art on the console, best-looking first: the LiveArea background (wide game
+        # art), then startup/pic0, then the small square icon0.
+        for rel in ("sce_sys/livearea/contents/bg.png",
+                    "sce_sys/livearea/contents/startup.png",
+                    "sce_sys/pic0.png",
+                    "sce_sys/icon0.png"):
+            buf = io.BytesIO()
+            try:
+                ftp.retrbinary("RETR ux0:/app/%s/%s" % (title_id, rel), buf.write)
+            except ftplib.all_errors:
+                continue
+            d = buf.getvalue()
+            if _is_image(d):
+                data = d
+                break
+        if not data:
             return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)

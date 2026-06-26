@@ -1,5 +1,5 @@
 name: Playtime Collector
-version: "0.9.5"
+version: "0.9.6"
 slug: playtime_collector
 description: Cross-platform console playtime & trophies (PS3, PS Vita) — web dashboard, settings & people UI + JSON API
 url: https://github.com/vlad-bystritskii/ha-ps3-addon

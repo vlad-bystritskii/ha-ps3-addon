@@ -375,8 +375,15 @@ function playtimeHTML(a){
    platform-tinted backing that fills the letterbox gaps so the initials never peek. */
 function gameIconHTML(titleId,title,color,size,radius,fontSize,s1,s2){
  const box='<div style="position:absolute;inset:0;background:'+color+'1f;background-image:repeating-linear-gradient(135deg, '+color+'1a 0 '+s1+'px, transparent '+s1+'px '+s2+'px);display:flex;align-items:center;justify-content:center;font:700 '+fontSize+'px \'JetBrains Mono\';color:'+color+';">'+esc(initials(title))+'</div>';
- const img=titleId?('<img src="game-icon/'+encodeURIComponent(titleId)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;background:'+color+'1f;display:block;">'):'';
- return '<div style="position:relative;width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;overflow:hidden;flex:none;border:1px solid '+color+'55;">'+box+img+'</div>';
+ let layers='';
+ if(titleId){
+  const url='game-icon/'+encodeURIComponent(titleId);
+  // blurred zoomed copy fills the square (no black bars); the sharp cover sits whole on top (never cropped/squished)
+  const bg='<div style="position:absolute;inset:0;background-image:url('+url+');background-size:cover;background-position:center;filter:blur(9px) brightness(.5) saturate(1.3);transform:scale(1.18);"></div>';
+  const img='<img src="'+url+'" alt="" loading="lazy" onerror="this.style.display=\'none\';if(this.previousElementSibling)this.previousElementSibling.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;display:block;">';
+  layers=bg+img;
+ }
+ return '<div style="position:relative;width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;overflow:hidden;flex:none;border:1px solid '+color+'55;">'+box+layers+'</div>';
 }
 /* Avatar overlay: a real PS3 avatar <img src="avatar/{account}"> sits over a colored
    initials box; onerror hides the img so the initials show through (never a broken
