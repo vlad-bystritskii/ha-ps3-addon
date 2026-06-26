@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.9
+
+- **Trophies view** — a new "Trophies" page (header nav) shows every trophy set as
+  its own card with the set cover (ICON0), platform badge, progress bar (earned /
+  total) and a per-grade breakdown, **independent of playtime** — so trophy-rich
+  games you haven't logged sessions for (e.g. a Vita game played before tracking)
+  finally show up. Click a set to see its full trophy list (locked + unlocked).
+  Filter by platform. The Vita poller now also caches each set's ICON0, served by
+  the new `/trophy-set-icon/{account}/{npcommid}` route.
+
 ## 0.9.8
 
 - **PS Vita trophies** — a new FTP poller (`vita_trophy.py`) pulls the Vita's

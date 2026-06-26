@@ -25,6 +25,7 @@ import io
 import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import config, db
 from .trophies import detail_items, parse_tropconf, summary_dict
@@ -46,6 +47,24 @@ def _retr(ftp, path):
     buf = io.BytesIO()
     ftp.retrbinary("RETR " + path, buf.write)
     return buf.getvalue()
+
+
+def _cache_set_icon(ftp, account, npcommid):
+    """Pull the set's ICON0.PNG (plaintext, in the conf dir) once and cache it at
+    ICON_DIR/<account>/<npcommid>/ICON0.png so /trophy-set-icon can serve it. The
+    Trophies view uses it as the set cover; skipped if already cached."""
+    dest = Path(config.ICON_DIR) / account / npcommid / "ICON0.png"
+    if dest.exists():
+        return
+    try:
+        png = _retr(ftp, CONF_DIR + "/" + npcommid + "/ICON0.PNG")
+    except ftplib.all_errors:
+        return
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(png)
+    except OSError:
+        log.warning("vita trophy: could not cache ICON0 for %s", npcommid)
 
 
 def _state_from_dump(unlocked):
@@ -108,6 +127,7 @@ def _sync_once():
             items = detail_items(defs, state)
             db.upsert_trophies("psvita", account, summary)
             db.upsert_trophy_items("psvita", account, npcommid, items)
+            _cache_set_icon(ftp, account, npcommid)
             ingested += 1
         return (True, ingested)
     finally:

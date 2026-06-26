@@ -699,6 +699,18 @@ async def trophy_icon(
     return Response(content=png, media_type="image/png", headers=headers)
 
 
+@app.get("/trophy-set-icon/{account}/{npcommid}")
+def trophy_set_icon(account: str, npcommid: str):
+    """Trophy-set cover PNG (the set's ICON0). Served from the disk cache the Vita
+    trophy poller populates. Left open (no token) so the Trophies view's <img> tags
+    load it; 404 when uncached so the dashboard falls back to the diamond box."""
+    path = Path(config.ICON_DIR) / account / npcommid / "ICON0.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="no set icon")
+    return Response(content=path.read_bytes(), media_type="image/png",
+                   headers={"Cache-Control": "max-age=86400"})
+
+
 @app.get("/avatar/{account}")
 async def avatar(
     account: str,

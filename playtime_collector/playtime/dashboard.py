@@ -107,7 +107,9 @@ def build_data():
 
     trophies = [{
         "account": t["account"], "title": t["title"], "platform": t["platform"],
+        "npcommid": t["npcommid"], "earned": t["earned"], "total": t["total"],
         "earnedCount": t["earnedCount"], "totalCount": t["totalCount"],
+        "lastEarnedAt": t["lastEarnedAt"],
     } for t in troph_sets]
 
     return {
@@ -188,7 +190,8 @@ async function fetchJSON(url){const r=await fetch(url,{headers:{Accept:'applicat
 /* ---- state ---- */
 const state={theme:document.documentElement.dataset.theme||'dark',period:'week',accountIdx:0,
  accountMenuOpen:false,histFilter:'all',histProfile:'all',histMenuOpen:false,
- view:'dashboard',prevView:'dashboard',activeGame:null,gameDetail:null,activeTrophy:null};
+ view:'dashboard',prevView:'dashboard',activeGame:null,gameDetail:null,activeTrophy:null,
+ activeSet:null,setDetail:null,trophyPlat:'all'};
 let currentChart=null;
 let POP=[];   // trophy payloads referenced by index from inline onclick (avoids attr escaping)
 
@@ -279,6 +282,8 @@ function render(){
  h+=historyHTML();
  if(state.view==='games')h+=gamesModalHTML(a);
  if(state.view==='game')h+=gameModalHTML();
+ if(state.view==='trophies'||state.view==='set')h+=trophiesModalHTML();
+ if(state.view==='set')h+=trophySetModalHTML();
  if(state.activeTrophy)h+=trophyPopupHTML(state.activeTrophy);
  h+='</main></div>';
  $('root').innerHTML=h;
@@ -299,6 +304,7 @@ function headerHTML(a){
   +'<span style="font:600 12px \'JetBrains Mono\';color:var(--dim);white-space:nowrap;">'+esc(ago(D.meta.lastPoll))+'</span></div>';
  // nav (kept for the addon; not in the mock) — styled like the theme button
  const navBtn='border:1px solid var(--border);background:var(--surface);color:var(--dim);padding:9px 14px;border-radius:10px;font:600 12px \'Space Grotesk\';cursor:pointer;text-decoration:none;display:inline-block;';
+ h+='<button onclick="openTrophies()" style="'+navBtn+'">Trophies</button>';
  h+='<a href="./people" style="'+navBtn+'">People</a>';
  h+='<a href="./config" style="'+navBtn+'">Settings</a>';
  h+='<button onclick="toggleTheme()" style="'+navBtn+'">'+(state.theme==='dark'?'Light':'Dark')+'</button>';
@@ -626,6 +632,121 @@ function trophyPopupHTML(t){
   +(t.player?'<span style="color:var(--faint);">·</span><span style="color:'+t.playerColor+';font-weight:600;">'+esc(t.player)+'</span>':'')+'</div></div></div>';
 }
 
+/* ---- trophies view (all sets, independent of playtime) ---- */
+const GRADES={platinum:{label:'Platinum',color:'#9aa6ff',key:'platinum'},gold:{label:'Gold',color:'#ffb648'},
+ silver:{label:'Silver',color:'#c2c8d6'},bronze:{label:'Bronze',color:'#cd844e'}};
+function gradeColor(g){return (GRADES[g]||{color:'#8a8f9c'}).color;}
+/* set cover: cached ICON0 (relative, ingress-safe) over a platform-tinted initials box,
+   blurred-fill backdrop + whole cover on top; <img> hides itself onerror -> box shows. */
+function setIconHTML(account,npcommid,title,color,size,radius){
+ const box='<div style="position:absolute;inset:0;background:'+color+'1f;display:flex;align-items:center;justify-content:center;font:700 '+Math.round(size/3.2)+'px \'JetBrains Mono\';color:'+color+';">'+esc(initials(title))+'</div>';
+ let layers='';
+ if(account&&npcommid){const url='trophy-set-icon/'+encodeURIComponent(account)+'/'+encodeURIComponent(npcommid);
+  const bg='<div style="position:absolute;inset:0;background-image:url('+url+');background-size:cover;background-position:center;filter:blur(9px) brightness(.5) saturate(1.3);transform:scale(1.18);"></div>';
+  const img='<img src="'+url+'" alt="" loading="lazy" onerror="this.style.display=\'none\';if(this.previousElementSibling)this.previousElementSibling.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;display:block;">';
+  layers=bg+img;}
+ return '<div style="position:relative;width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;overflow:hidden;flex:none;border:1px solid '+color+'55;">'+box+layers+'</div>';
+}
+function trophySets(){
+ let list=D.trophies.slice().filter(t=>state.trophyPlat==='all'||t.platform===state.trophyPlat);
+ list.sort((a,b)=>(b.earnedCount-a.earnedCount)||(b.totalCount-a.totalCount));
+ return list;
+}
+function gradePills(earned,total){let h='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:7px;">';
+ ['platinum','gold','silver','bronze'].forEach(g=>{const tot=(total&&total[g])||0;if(!tot)return;const ear=(earned&&earned[g])||0;const c=gradeColor(g);
+  h+='<span style="display:inline-flex;align-items:center;gap:4px;font:600 10.5px \'JetBrains Mono\';color:'+c+';">'
+   +'<span style="width:8px;height:8px;background:'+c+';transform:rotate(45deg);border-radius:2px;"></span>'+ear+'/'+tot+'</span>';});
+ return h+'</div>';}
+function trophySetCardHTML(t){
+ const pm=plat(t.platform);const pct=t.totalCount?Math.round(t.earnedCount/t.totalCount*100):0;
+ const done=t.totalCount&&t.earnedCount>=t.totalCount;
+ return '<div onclick="openTrophySet('+JSON.stringify(t.account).replace(/"/g,'&quot;')+','+JSON.stringify(t.npcommid).replace(/"/g,'&quot;')+')" style="display:flex;gap:14px;background:var(--surface2,#1b1e27);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;align-items:flex-start;">'
+  +setIconHTML(t.account,t.npcommid,t.title,pm.color,54,12)
+  +'<div style="flex:1;min-width:0;">'
+  +'<div style="display:flex;align-items:center;gap:8px;"><span style="font:600 14px/1.2 \'Space Grotesk\';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">'+esc(t.title||t.npcommid)+'</span>'
+  +'<span style="display:inline-flex;align-items:center;background:'+pm.color+'1f;color:'+pm.color+';padding:3px 6px;border-radius:6px;flex:none;">'+platBadge(t.platform,12)+'</span></div>'
+  +'<div style="display:flex;align-items:center;gap:9px;margin-top:9px;">'
+  +'<div style="flex:1;height:6px;border-radius:4px;background:var(--border);overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+(done?'#3fbf7f':'var(--accent)')+';border-radius:4px;"></div></div>'
+  +'<span style="font:700 11.5px \'JetBrains Mono\';color:'+(done?'#3fbf7f':'var(--text)')+';white-space:nowrap;">'+t.earnedCount+'/'+t.totalCount+'</span></div>'
+  +gradePills(t.earned,t.total)
+  +'</div></div>';
+}
+function trophiesModalHTML(){
+ const sets=trophySets();
+ const plats=['all'].concat(Array.from(new Set(D.trophies.map(t=>t.platform))));
+ const totEarned=D.trophies.reduce((x,t)=>x+t.earnedCount,0);
+ let h='<div onclick="back()" style="position:fixed;inset:0;z-index:50;background:color-mix(in oklab, var(--bg,#0b0d12) 58%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:48px 24px;overflow-y:auto;">';
+ h+='<div onclick="event.stopPropagation()" style="width:100%;max-width:960px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:24px 26px;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">';
+ h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;">'
+  +'<span style="font:700 22px \'Space Grotesk\';letter-spacing:-.02em;">Trophies</span>'
+  +'<span style="font-size:13px;color:var(--dim);">'+sets.length+' sets · '+totEarned+' earned</span>'
+  +'<div style="flex:1;"></div>';
+ plats.forEach(p=>{const on=state.trophyPlat===p;const lbl=p==='all'?'All':plat(p).label;
+  h+='<button onclick="setTrophyPlat(\''+esc(p)+'\')" style="background:'+(on?'var(--surface2)':'transparent')+';color:'+(on?'var(--text)':'var(--dim)')+';border:1px solid '+(on?'var(--border2)':'var(--border)')+';padding:6px 12px;border-radius:9px;font:600 11.5px \'Space Grotesk\';cursor:pointer;">'+esc(lbl)+'</button>';});
+ h+='<button onclick="back()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">✕</button></div>';
+ if(sets.length){h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">';
+   sets.forEach(t=>{h+=trophySetCardHTML(t);});h+='</div>';}
+ else h+='<div style="padding:30px 4px;text-align:center;color:var(--faint);font-size:13px;">No trophy sets yet.</div>';
+ h+='</div></div>';
+ return h;
+}
+async function openTrophies(){state.prevView=(state.view==='set')?'trophies':(state.view||'dashboard');state.view='trophies';state.accountMenuOpen=false;render();}
+function setTrophyPlat(p){state.trophyPlat=p;render();}
+async function openTrophySet(account,npcommid){
+ state.activeSet={account,npcommid};
+ const base=D.trophies.find(t=>t.account===account&&t.npcommid===npcommid)||{};
+ state.setDetail={title:base.title,platform:base.platform,account,npcommid,
+   earnedCount:base.earnedCount,totalCount:base.totalCount,earned:base.earned,total:base.total,items:null};
+ state.view='set';render();
+ try{const r=await fetchJSON('trophies/'+encodeURIComponent(account)+'/'+encodeURIComponent(npcommid));
+   if(state.view!=='set'||!state.activeSet||state.activeSet.npcommid!==npcommid)return;
+   state.setDetail.items=(r.trophies||[]).map(t=>({id:t.id,name:t.name,desc:t.detail,grade:t.grade,
+     hidden:t.hidden,unlocked:t.unlocked,earnedAt:t.earnedAt,rate:t.earnedRate,
+     iconUrl:(t.icon||'').replace(/^\//,'')}));
+   if(r.title)state.setDetail.title=r.title;
+   render();
+ }catch(e){state.setDetail.items=[];render();}
+}
+function trophySetModalHTML(){
+ const g=state.setDetail;if(!g)return '';
+ const pm=plat(g.platform);const pct=g.totalCount?Math.round(g.earnedCount/g.totalCount*100):0;
+ let h='<div onclick="back()" style="position:fixed;inset:0;z-index:54;background:color-mix(in oklab, var(--bg,#0b0d12) 58%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:42px 24px;overflow-y:auto;">';
+ h+='<div onclick="event.stopPropagation()" style="width:100%;max-width:760px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:26px 28px;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">';
+ h+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">'
+  +setIconHTML(g.account,g.npcommid,g.title,pm.color,58,14)
+  +'<div style="flex:1;min-width:0;"><div style="font:700 22px \'Space Grotesk\';letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(g.title||g.npcommid)+'</div>'
+  +'<div style="display:flex;align-items:center;gap:10px;margin-top:8px;">'
+  +'<span style="display:inline-flex;align-items:center;background:'+pm.color+'1f;color:'+pm.color+';padding:4px 8px;border-radius:7px;">'+platBadge(g.platform,15)+'</span>'
+  +'<span style="font:700 13px \'JetBrains Mono\';color:'+(pct>=100?'#3fbf7f':'var(--text)')+';">'+g.earnedCount+'/'+g.totalCount+' · '+pct+'%</span></div></div>'
+  +'<button onclick="back()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">✕</button></div>';
+ h+=gradePills(g.earned,g.total).replace('margin-top:7px','margin:0 0 18px');
+ if(g.items==null){h+='<div style="padding:30px;text-align:center;color:var(--faint);font-size:13px;">Loading…</div>';}
+ else if(!g.items.length){h+='<div style="padding:30px;text-align:center;color:var(--faint);font-size:13px;">No trophy details.</div>';}
+ else{const items=g.items.slice().sort((a,b)=>(b.unlocked-a.unlocked)||(a.id-b.id));
+   h+='<div style="display:flex;flex-direction:column;gap:2px;">';
+   items.forEach(t=>{h+=setTrophyRowHTML(t,g);});
+   h+='</div>';}
+ h+='</div></div>';
+ return h;
+}
+function setTrophyRowHTML(t,g){
+ const gc=gradeColor(t.grade);const locked=t.unlocked===false;const pm=plat(g.platform);
+ const name=t.name||(t.hidden?'Hidden trophy':'Trophy '+t.id);
+ const op=locked?'opacity:.5;':'';
+ let right;
+ if(locked)right='<span style="font:600 10px \'JetBrains Mono\';color:var(--faint);text-transform:uppercase;letter-spacing:.08em;">Locked</span>';
+ else right='<span style="font:600 10px \'JetBrains Mono\';color:#3fbf7f;text-transform:uppercase;letter-spacing:.08em;">'+esc(ago(t.earnedAt))+'</span>';
+ const idx=POP.push({name:name,desc:t.desc,pctLabel:t.rate!=null?(+t.rate).toFixed(1)+'%':'—',
+   rarityColor:gc,rarityLabel:(GRADES[t.grade]||{label:'Trophy'}).label,game:g.title,platKey:g.platform,platLabel:pm.label,platColor:pm.color,
+   player:'',playerColor:'var(--dim)',iconUrl:locked?null:t.iconUrl})-1;
+ return '<div onclick="openTrophyPopup('+idx+')" style="display:flex;align-items:center;gap:13px;padding:11px 6px;margin:0 -6px;border-bottom:1px solid var(--border,rgba(255,255,255,.06));cursor:pointer;border-radius:10px;'+op+'">'
+  +'<div style="position:relative;overflow:hidden;width:42px;height:42px;border-radius:11px;background:'+gc+'1a;border:1px solid '+gc+'40;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:13px;height:13px;background:'+gc+';transform:rotate(45deg);border-radius:3px;"></div>'+(locked?'':trophyIconImg(t.iconUrl))+'</div>'
+  +'<div style="flex:1;min-width:0;"><div style="font:600 13.5px \'Space Grotesk\';color:'+(locked?'var(--dim)':'var(--text)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(name)+'</div>'
+  +'<div style="font-size:11.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(t.desc||'')+'</div></div>'
+  +'<div style="display:flex;flex-direction:column;align-items:flex-end;flex:none;gap:3px;line-height:1.2;">'
+  +'<span style="font:600 11px \'JetBrains Mono\';color:'+gc+';text-transform:capitalize;">'+esc(t.grade||'')+'</span>'+right+'</div></div>';
+}
+
 function emptyShell(){
  return '<div style="--accent:'+ACCENT+';min-height:100vh;background:var(--bg);color:var(--text);font-family:\'Space Grotesk\',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;">'
   +'<div><div style="width:40px;height:40px;margin:0 auto 16px;background:linear-gradient(135deg,var(--accent),color-mix(in oklab,var(--accent) 55%,#fff));transform:rotate(45deg);border-radius:10px;"></div>'
@@ -644,7 +765,11 @@ function closeAccountMenu(){state.accountMenuOpen=false;render();}
 function selectAccount(i){state.accountIdx=i;state.accountMenuOpen=false;currentChart=computeChart(curAcc(),state.period);render();refreshChartLive();}
 function setPeriod(p){state.period=p;currentChart=computeChart(curAcc(),p);render();refreshChartLive();}
 function openGames(){state.prevView=state.view||'dashboard';state.view='games';render();}
-function back(){state.view=(state.view==='game')?(state.prevView||'dashboard'):'dashboard';state.activeGame=null;state.gameDetail=null;render();}
+function back(){
+ if(state.view==='set'){state.view='trophies';state.activeSet=null;state.setDetail=null;render();return;}
+ if(state.view==='game'){state.view=state.prevView||'dashboard';}
+ else state.view='dashboard';
+ state.activeGame=null;state.gameDetail=null;state.activeSet=null;state.setDetail=null;render();}
 function setHistFilter(k){state.histFilter=k;render();}
 function toggleProfileMenu(){state.histMenuOpen=!state.histMenuOpen;render();}
 function closeProfileMenu(){state.histMenuOpen=false;render();}
