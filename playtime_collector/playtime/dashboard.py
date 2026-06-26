@@ -169,9 +169,10 @@ function plat(p){return PLATS[p]||{label:String(p||'').toUpperCase(),color:'#8a8
 const PLAT_SVG={
  ps:'<path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.151.794-.991.636.181.76.814.76 1.505v5.876c2.441 1.193 4.362-.002 4.362-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.393-1.5zm4.656 16.242l6.296-2.275c.715-.258.825-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499V14.98l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.029 5.437.661 1.848.601 2.041 1.491 1.576 2.116-.465.624-1.622 1.07-1.622 1.07l-8.769 3.158v-2.447zM1.807 18.95c-1.9-.534-2.207-1.648-1.339-2.29.804-.59 2.171-1.035 2.171-1.035l5.696-2.026v2.311l-4.1 1.469c-.724.26-.835.625-.249.819.587.193 1.637.139 2.36-.121l1.99-.72v2.06c-.122.025-.26.044-.398.06-1.844.302-3.812.144-5.842-.467z"/>',
  swi:'<path d="M14.176 24h3.674c3.376 0 6.15-2.774 6.15-6.15V6.15C24 2.775 21.226 0 17.85 0H14.13c-.114 0-.2.087-.2.2v23.6c0 .114.115.2.246.2zm2.099-15.224c1.235 0 2.237 1.002 2.237 2.237 0 1.234-1.002 2.237-2.237 2.237-1.235 0-2.237-1.003-2.237-2.237 0-1.235 1.002-2.237 2.237-2.237zM5.876 24h.74c.114 0 .2-.087.2-.2V.2c0-.113-.086-.2-.2-.2H5.83C2.502.057-.137 2.737.005 6.064v11.786C-.137 21.32 2.55 24 5.876 24zm-.74-15.973c-1.797 0-3.255 1.457-3.255 3.254 0 1.798 1.458 3.255 3.255 3.255.072 0 .145-.003.217-.008V8.035a3.31 3.31 0 0 0-.217-.008z"/>',
- n3ds:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.25" y="2.5" width="17.5" height="8.5" rx="2"/><rect x="3.25" y="13" width="17.5" height="8.5" rx="2"/></g><circle cx="6.6" cy="17.25" r="1.55"/><circle cx="17.4" cy="17.25" r="1.55"/>'};
-/* platform key -> glyph family (PlayStation family shares the PS mark; color still differentiates) */
-const PLAT_GLYPH={ps3:'ps',ps4:'ps',ps5:'ps',psp:'ps',psvita:'ps',vita:'ps',n3ds:'n3ds',swi:'swi'};
+ n3ds:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.25" y="2.5" width="17.5" height="8.5" rx="2"/><rect x="3.25" y="13" width="17.5" height="8.5" rx="2"/></g><circle cx="6.6" cy="17.25" r="1.55"/><circle cx="17.4" cy="17.25" r="1.55"/>',
+ psv:'<rect x="1.4" y="6.6" width="21.2" height="10.8" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="8.2" y="9" width="7.6" height="6" rx="1.1" fill="currentColor"/><circle cx="4.8" cy="12" r="1.45" fill="currentColor"/><circle cx="19.2" cy="12" r="1.45" fill="currentColor"/>'};
+/* platform key -> glyph family (PS3/PS4/PS5/PSP share the PS mark; PS Vita gets its own handheld glyph) */
+const PLAT_GLYPH={ps3:'ps',ps4:'ps',ps5:'ps',psp:'ps',psvita:'psv',vita:'psv',n3ds:'n3ds',swi:'swi'};
 /* Badge inner content for a platform key: inline SVG glyph (currentColor), or the short label as fallback. */
 function platBadge(p,sz){sz=sz||13;const inner=PLAT_GLYPH[p]&&PLAT_SVG[PLAT_GLYPH[p]];const lbl=plat(p).label;
  if(!inner)return esc(lbl);
@@ -295,7 +296,7 @@ function headerHTML(a){
  let h='<header style="position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:color-mix(in oklab, var(--bg,#0b0d12) 80%, transparent);border-bottom:1px solid var(--border,rgba(255,255,255,.07));">';
  h+='<div style="max-width:1280px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;">';
  h+='<div style="display:flex;align-items:center;gap:11px;">'
-  +'<div style="width:28px;height:28px;background:linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 55%, #fff));transform:rotate(45deg);border-radius:8px;box-shadow:0 4px 16px color-mix(in oklab, var(--accent) 45%, transparent);"></div>'
+  +'<img src="icon" alt="" width="28" height="28" onerror="this.outerHTML=\'<div style=&quot;width:28px;height:28px;background:linear-gradient(135deg,var(--accent),color-mix(in oklab,var(--accent) 55%,#fff));transform:rotate(45deg);border-radius:8px;box-shadow:0 4px 16px color-mix(in oklab,var(--accent) 45%,transparent);&quot;></div>\'" style="display:block;width:28px;height:28px;object-fit:contain;border-radius:8px;box-shadow:0 4px 16px color-mix(in oklab, var(--accent) 35%, transparent);">'
   +'<div style="display:flex;flex-direction:column;line-height:1.05;"><span style="font-weight:700;font-size:16px;letter-spacing:-.02em;">PLAYTRACE</span>'
   +'<span style="font-size:9.5px;color:var(--faint);letter-spacing:.2em;text-transform:uppercase;">console activity</span></div></div>';
  h+='<div style="flex:1;"></div>';
@@ -380,17 +381,19 @@ function playtimeHTML(a){
    The backend now serves portrait box-art, so the cover is laid out with
    object-fit:contain (whole cover, never squished/awkwardly cropped) over its own
    platform-tinted backing that fills the letterbox gaps so the initials never peek. */
-function gameIconHTML(titleId,title,color,size,radius,fontSize,s1,s2){
- const box='<div style="position:absolute;inset:0;background:'+color+'1f;background-image:repeating-linear-gradient(135deg, '+color+'1a 0 '+s1+'px, transparent '+s1+'px '+s2+'px);display:flex;align-items:center;justify-content:center;font:700 '+fontSize+'px \'JetBrains Mono\';color:'+color+';">'+esc(initials(title))+'</div>';
- let layers='';
- if(titleId){
-  const url='game-icon/'+encodeURIComponent(titleId);
-  // blurred zoomed copy fills the square (no black bars); the sharp cover sits whole on top (never cropped/squished)
-  const bg='<div style="position:absolute;inset:0;background-image:url('+url+');background-size:cover;background-position:center;filter:blur(9px) brightness(.5) saturate(1.3);transform:scale(1.18);"></div>';
-  const img='<img src="'+url+'" alt="" loading="lazy" onerror="this.style.display=\'none\';if(this.previousElementSibling)this.previousElementSibling.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;display:block;">';
-  layers=bg+img;
+/* Bare cover art: the whole image (object-fit:contain, never cropped) with no box,
+   border or backdrop. A borderless initials chip sits behind, hidden until the image
+   errors (so contain-letterbox gaps stay transparent rather than showing the chip). */
+function coverHTML(url,title,color,size,radius,fontSize){
+ const chip='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 '+fontSize+'px \'JetBrains Mono\';color:'+color+';background:'+color+'14;border-radius:'+radius+'px;'+(url?'opacity:0;':'')+'">'+esc(initials(title))+'</div>';
+ let img='';
+ if(url){
+  img='<img src="'+url+'" alt="" loading="lazy" onerror="this.style.display=\'none\';if(this.previousElementSibling)this.previousElementSibling.style.opacity=1" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;display:block;border-radius:'+radius+'px;">';
  }
- return '<div style="position:relative;width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;overflow:hidden;flex:none;border:1px solid '+color+'55;">'+box+layers+'</div>';
+ return '<div style="position:relative;width:'+size+'px;height:'+size+'px;flex:none;">'+chip+img+'</div>';
+}
+function gameIconHTML(titleId,title,color,size,radius,fontSize){
+ return coverHTML(titleId?('game-icon/'+encodeURIComponent(titleId)):'',title,color,size,radius,fontSize);
 }
 /* Avatar overlay: a real PS3 avatar <img src="avatar/{account}"> sits over a colored
    initials box; onerror hides the img so the initials show through (never a broken
@@ -400,15 +403,20 @@ function avatarImg(account){return account?('<img src="avatar/'+encodeURICompone
 function avatarBox(name,account,color,size,radius,fontSize){
  return '<span style="position:relative;display:inline-flex;flex:none;vertical-align:middle;overflow:hidden;width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;background:'+color+';align-items:center;justify-content:center;font:600 '+fontSize+'px \'Space Grotesk\';color:#fff;">'+esc(initials(name))+avatarImg(account)+'</span>';
 }
-/* Real trophy icon <img src="{iconUrl}"> overlaid on the rarity-tinted diamond frame;
-   onerror hides the img so the diamond placeholder shows through. */
-function trophyIconImg(url){return url?('<img src="'+esc(url)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">'):'';}
+/* Bare trophy icon: the real PNG shown whole (object-fit:contain, no box/border/tint),
+   or a bare rarity-colored diamond when there's no art (locked, or a Vita per-trophy
+   icon not yet dumped) — onerror swaps a broken image for that same diamond. */
+function trophyDiamond(color,size){const d=Math.round(size*0.32);
+ return '<div style="width:'+size+'px;height:'+size+'px;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:'+d+'px;height:'+d+'px;background:'+color+';transform:rotate(45deg);border-radius:'+Math.max(2,Math.round(d/4))+'px;"></div></div>';}
+function trophyIcon(url,color,size){
+ if(!url)return trophyDiamond(color,size);
+ return '<img src="'+esc(url)+'" alt="" loading="lazy" onerror="this.outerHTML=trophyDiamond(\''+color+'\','+size+')" style="width:'+size+'px;height:'+size+'px;object-fit:contain;display:block;flex:none;border-radius:'+Math.round(size/4)+'px;">';}
 function gameRowHTML(g,i,withDivider,total){
  const pm=plat(g.platform);const rankColor=i<3?'var(--accent)':'var(--faint,#5b6070)';
  const divider=(withDivider&&i===total-1)?'1px solid transparent':'1px solid var(--border)';
  return '<div onclick="openGame(\''+esc(g.platform)+'\',\''+esc(g.titleId)+'\')" style="display:flex;align-items:center;gap:12px;padding:12px 6px;margin:0 -6px;border-bottom:'+divider+';cursor:pointer;border-radius:10px;">'
   +'<span style="width:18px;font:600 12px \'JetBrains Mono\';color:'+rankColor+';flex:none;">'+String(i+1).padStart(2,'0')+'</span>'
-  +gameIconHTML(g.titleId,g.title,pm.color,42,10,12,6,13)
+  +gameIconHTML(g.titleId,g.title,pm.color,42,10,12)
   +'<div style="flex:1;min-width:0;">'
   +'<div style="font:600 13.5px/1.2 \'Space Grotesk\';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(g.title)+'</div>'
   +'<div style="display:flex;align-items:center;gap:8px;margin-top:5px;">'
@@ -477,7 +485,7 @@ function historyItemHTML(it){
  const pm=plat(it.platform);const time=String(it.dt||'').slice(11,16);
  let icon,title,titleColor,subRest,rightMain,rightColor,rightSub,onclick,cursor='pointer';
  if(it.kind==='trophy'){const rr=rarity(it.rate);
-   icon='<div style="position:relative;overflow:hidden;width:44px;height:44px;border-radius:11px;background:'+rr.color+'1a;border:1px solid '+rr.color+'40;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:14px;height:14px;background:'+rr.color+';transform:rotate(45deg);border-radius:3px;"></div>'+trophyIconImg(it.iconUrl)+'</div>';
+   icon=trophyIcon(it.iconUrl,rr.color,44);
    title=esc(it.name);titleColor='var(--accent)';subRest=' · '+esc(it.game||'')+' — '+esc(it.desc||'');
    rightMain=it.rate!=null?(+it.rate).toFixed(1)+'%':'—';rightColor=rr.color;rightSub=rr.label;
    const idx=POP.push({name:it.name,desc:it.desc,pctLabel:rightMain,rarityColor:rr.color,rarityLabel:rr.label,
@@ -506,7 +514,7 @@ function gameCardHTML(g,i){
  const pm=plat(g.platform);const rankColor=i<3?'var(--accent)':'var(--faint,#5b6070)';
  return '<div onclick="openGame(\''+esc(g.platform)+'\',\''+esc(g.titleId)+'\')" style="display:flex;align-items:center;gap:14px;background:var(--surface2,#1b1e27);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;">'
   +'<span style="width:20px;font:600 12.5px \'JetBrains Mono\';color:'+rankColor+';flex:none;">'+String(i+1).padStart(2,'0')+'</span>'
-  +gameIconHTML(g.titleId,g.title,pm.color,46,11,13,6,13)
+  +gameIconHTML(g.titleId,g.title,pm.color,46,11,13)
   +'<div style="flex:1;min-width:0;"><div style="font:600 14px/1.2 \'Space Grotesk\';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(g.title)+'</div>'
   +'<div style="display:flex;align-items:center;gap:10px;margin-top:6px;font:600 11px \'JetBrains Mono\';">'
   +'<span style="color:#ffb648;white-space:nowrap;">◆ '+(g.trophies||0)+' trophies</span>'
@@ -575,7 +583,7 @@ function gameModalHTML(){
  let h='<div onclick="back()" style="position:fixed;inset:0;z-index:52;background:color-mix(in oklab, var(--bg,#0b0d12) 58%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:42px 24px;overflow-y:auto;">';
  h+='<div onclick="event.stopPropagation()" style="width:100%;max-width:880px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:26px 28px;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">';
  h+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">'
-  +gameIconHTML(state.activeGame?state.activeGame.titleId:'',g.title,pm.color,58,14,17,7,15)
+  +gameIconHTML(state.activeGame?state.activeGame.titleId:'',g.title,pm.color,58,14,17)
   +'<div style="flex:1;min-width:0;"><div style="font:700 24px \'Space Grotesk\';letter-spacing:-.02em;">'+esc(g.title)+'</div>'
   +'<div style="margin-top:6px;"><span style="display:inline-flex;align-items:center;background:'+pm.color+'1f;color:'+pm.color+';padding:4px 8px;border-radius:7px;">'+platBadge(g.platform,16)+'</span></div></div>'
   +'<button onclick="back()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">✕</button></div>';
@@ -604,7 +612,7 @@ function gameModalHTML(){
        rarityColor:rr.color,rarityLabel:rr.label,game:g.title,platKey:g.platform,platLabel:pm.label,platColor:pm.color,
        player:'',playerColor:'var(--dim)',iconUrl:t.iconUrl})-1;
      h+='<div onclick="openTrophyPopup('+idx+')" style="display:flex;align-items:center;gap:13px;padding:11px 6px;margin:0 -6px;border-bottom:1px solid var(--border,rgba(255,255,255,.06));cursor:pointer;border-radius:10px;">'
-      +'<div style="position:relative;overflow:hidden;width:42px;height:42px;border-radius:11px;background:'+rr.color+'1a;border:1px solid '+rr.color+'40;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:13px;height:13px;background:'+rr.color+';transform:rotate(45deg);border-radius:3px;"></div>'+trophyIconImg(t.iconUrl)+'</div>'
+      +trophyIcon(t.iconUrl,rr.color,42)
       +'<div style="flex:1;min-width:0;"><div style="font:600 13.5px \'Space Grotesk\';color:var(--accent);">'+esc(t.name)+'</div>'
       +'<div style="font-size:11.5px;color:var(--dim);margin-top:2px;">'+esc(t.desc||'')+'</div></div>'
       +'<div style="display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1.25;">'
@@ -621,7 +629,7 @@ function gameModalHTML(){
 function trophyPopupHTML(t){
  return '<div onclick="closeTrophy()" style="position:fixed;inset:0;z-index:60;background:color-mix(in oklab, var(--bg,#0b0d12) 55%, transparent);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);display:flex;align-items:center;justify-content:center;padding:24px;">'
   +'<div onclick="event.stopPropagation()" style="width:100%;max-width:420px;background:var(--surface,#14161d);border:1px solid var(--border2);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:26px;text-align:center;animation:ptPop .24s cubic-bezier(.2,.85,.3,1) forwards;">'
-  +'<div style="position:relative;overflow:hidden;width:78px;height:78px;margin:4px auto 0;border-radius:20px;background:'+t.rarityColor+'1a;border:1px solid '+t.rarityColor+'55;display:flex;align-items:center;justify-content:center;"><div style="width:26px;height:26px;background:'+t.rarityColor+';transform:rotate(45deg);border-radius:5px;"></div>'+trophyIconImg(t.iconUrl)+'</div>'
+  +'<div style="display:flex;justify-content:center;margin:4px 0 0;">'+trophyIcon(t.iconUrl,t.rarityColor,78)+'</div>'
   +'<div style="font:700 19px \'Space Grotesk\';margin-top:16px;letter-spacing:-.01em;">'+esc(t.name)+'</div>'
   +'<div style="display:inline-flex;align-items:center;gap:8px;margin-top:9px;">'
   +'<span style="background:'+t.rarityColor+'22;color:'+t.rarityColor+';padding:3px 10px;border-radius:7px;font:600 11px \'JetBrains Mono\';text-transform:uppercase;letter-spacing:.06em;">'+esc(t.rarityLabel)+'</span>'
@@ -637,16 +645,11 @@ function trophyPopupHTML(t){
 const GRADES={platinum:{label:'Platinum',color:'#9aa6ff',key:'platinum'},gold:{label:'Gold',color:'#ffb648'},
  silver:{label:'Silver',color:'#c2c8d6'},bronze:{label:'Bronze',color:'#cd844e'}};
 function gradeColor(g){return (GRADES[g]||{color:'#8a8f9c'}).color;}
-/* set cover: cached ICON0 (relative, ingress-safe) over a platform-tinted initials box,
-   blurred-fill backdrop + whole cover on top; <img> hides itself onerror -> box shows. */
+/* set cover: cached ICON0 (relative, ingress-safe) shown bare via coverHTML — whole
+   cover, no box/border/backdrop; falls back to a borderless initials chip onerror. */
 function setIconHTML(account,npcommid,title,color,size,radius){
- const box='<div style="position:absolute;inset:0;background:'+color+'1f;display:flex;align-items:center;justify-content:center;font:700 '+Math.round(size/3.2)+'px \'JetBrains Mono\';color:'+color+';">'+esc(initials(title))+'</div>';
- let layers='';
- if(account&&npcommid){const url='trophy-set-icon/'+encodeURIComponent(account)+'/'+encodeURIComponent(npcommid);
-  const bg='<div style="position:absolute;inset:0;background-image:url('+url+');background-size:cover;background-position:center;filter:blur(9px) brightness(.5) saturate(1.3);transform:scale(1.18);"></div>';
-  const img='<img src="'+url+'" alt="" loading="lazy" onerror="this.style.display=\'none\';if(this.previousElementSibling)this.previousElementSibling.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;display:block;">';
-  layers=bg+img;}
- return '<div style="position:relative;width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;overflow:hidden;flex:none;border:1px solid '+color+'55;">'+box+layers+'</div>';
+ const url=(account&&npcommid)?('trophy-set-icon/'+encodeURIComponent(account)+'/'+encodeURIComponent(npcommid)):'';
+ return coverHTML(url,title,color,size,radius,Math.round(size/3.2));
 }
 function trophySets(){
  let list=D.trophies.slice().filter(t=>state.trophyPlat==='all'||t.platform===state.trophyPlat);
@@ -741,7 +744,7 @@ function setTrophyRowHTML(t,g){
    rarityColor:gc,rarityLabel:(GRADES[t.grade]||{label:'Trophy'}).label,game:g.title,platKey:g.platform,platLabel:pm.label,platColor:pm.color,
    player:'',playerColor:'var(--dim)',iconUrl:locked?null:t.iconUrl})-1;
  return '<div onclick="openTrophyPopup('+idx+')" style="display:flex;align-items:center;gap:13px;padding:11px 6px;margin:0 -6px;border-bottom:1px solid var(--border,rgba(255,255,255,.06));cursor:pointer;border-radius:10px;'+op+'">'
-  +'<div style="position:relative;overflow:hidden;width:42px;height:42px;border-radius:11px;background:'+gc+'1a;border:1px solid '+gc+'40;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:13px;height:13px;background:'+gc+';transform:rotate(45deg);border-radius:3px;"></div>'+(locked?'':trophyIconImg(t.iconUrl))+'</div>'
+  +trophyIcon(locked?null:t.iconUrl,gc,42)
   +'<div style="flex:1;min-width:0;"><div style="font:600 13.5px \'Space Grotesk\';color:'+(locked?'var(--dim)':'var(--text)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(name)+'</div>'
   +'<div style="font-size:11.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(t.desc||'')+'</div></div>'
   +'<div style="display:flex;flex-direction:column;align-items:flex-end;flex:none;gap:3px;line-height:1.2;">'

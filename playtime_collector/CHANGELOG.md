@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.11
+
+- **Cleaner icons everywhere** — game covers and trophy set covers now show the
+  whole artwork, bare: no surrounding box, border, background tint or blurred
+  backdrop, and never cropped. The header shows the real add-on logo instead of a
+  placeholder diamond. Trophy icons render as the bare trophy art, falling back to
+  a clean rarity-colored diamond when there's no image.
+- **Distinct PS Vita badge** — PS Vita now has its own handheld glyph instead of
+  sharing the PlayStation mark with PS3.
+- **Real PS Vita per-trophy icons** — the on-console dumper now copies each
+  trophy's decrypted icon out of the mounted trophy folder, and the add-on pulls
+  them over FTP, so individual Vita trophies show their real art (not just the set
+  cover). Requires the updated Vita Trophy Dump homebrew.
+
 ## 0.9.10
 
 - **Trophy unlocks from all platforms in History** — the activity feed was

@@ -34,6 +34,7 @@ log = logging.getLogger("playtime.vita_trophy")
 
 TROPHIES_JSON = "ux0:/data/VitaPlaytime/trophies.json"
 CONF_DIR = "ur0:/user/00/trophy/conf"
+ICONS_DIR = "ux0:/data/VitaPlaytime/icons"  # per-trophy PNGs the dumper copied out
 
 
 def _connect():
@@ -65,6 +66,27 @@ def _cache_set_icon(ftp, account, npcommid):
         dest.write_bytes(png)
     except OSError:
         log.warning("vita trophy: could not cache ICON0 for %s", npcommid)
+
+
+def _cache_trophy_icons(ftp, account, npcommid, ids):
+    """Pull each per-trophy icon (<id>.png) the dumper copied out of the decrypted
+    mount to ux0:/data/VitaPlaytime/icons/<npcommid>/, caching at
+    ICON_DIR/<account>/<npcommid>/<id>.png — the exact path /trophy-icon serves.
+    Skips ids already cached; best-effort (older dumps lack icons → diamond)."""
+    base = Path(config.ICON_DIR) / account / npcommid
+    for tid in ids:
+        dest = base / ("%d.png" % tid)
+        if dest.exists():
+            continue
+        try:
+            png = _retr(ftp, "%s/%s/%d.png" % (ICONS_DIR, npcommid, tid))
+        except ftplib.all_errors:
+            continue  # not dumped yet (or FTP hiccup) — leave it to a later pass
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(png)
+        except OSError:
+            log.warning("vita trophy: could not cache icon %d for %s", tid, npcommid)
 
 
 def _state_from_dump(unlocked):
@@ -128,6 +150,7 @@ def _sync_once():
             db.upsert_trophies("psvita", account, summary)
             db.upsert_trophy_items("psvita", account, npcommid, items)
             _cache_set_icon(ftp, account, npcommid)
+            _cache_trophy_icons(ftp, account, npcommid, defs.keys())
             ingested += 1
         return (True, ingested)
     finally:
