@@ -221,6 +221,9 @@ VITA_PORT = int(get("vita_port", "VITA_PORT", 1337))
 VITA_ACCOUNT = get("vita_account", "VITA_ACCOUNT", "vita")
 # How often to pull the Vita queue over FTP, in seconds.
 VITA_SYNC_INTERVAL = int(get("vita_sync_interval", "VITA_SYNC_INTERVAL", 60))
+# How often to pull Vita trophies (the on-console dump bubble is manual, so a
+# new trophies.json appears only occasionally — poll lazily).
+VITA_TROPHY_INTERVAL = int(get("vita_trophy_interval", "VITA_TROPHY_INTERVAL", 1800))
 # Vita titleIds to never record (homebrew / system apps the kernel can't filter,
 # e.g. VitaShell). List, or comma-separated string. NPXS* are always skipped.
 _vita_ignore_raw = get("vita_ignore_titles", "VITA_IGNORE_TITLES", "VITASHELL")

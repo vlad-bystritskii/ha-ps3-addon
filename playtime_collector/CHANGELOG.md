@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.8
+
+- **PS Vita trophies** — a new FTP poller (`vita_trophy.py`) pulls the Vita's
+  decrypted trophy unlock state (`ux0:data/VitaPlaytime/trophies.json`, produced
+  on-console by the Vita Trophy Dump homebrew) plus each set's plaintext
+  `TROP.SFM` definitions, and stores them under platform `psvita` so they render
+  on the dashboard exactly like PS3 trophies. New `vita_trophy_interval` option
+  (default 1800s). Trophy set definitions share the PS3 SFM parser.
+
+## 0.9.7
+
+- **`platform` field** added to the API contract on every Game and Trophy object
+  (`ps3 | psvita | 3ds`), so clients can tell platforms apart.
+
 ## 0.9.0
 
 - **In-app Settings page** (`/config`) — view and edit the add-on options (host,

@@ -21,6 +21,7 @@ from .poller import (
     avatar_path, cache_avatar, game_icon_path, cache_game_icon,
 )
 from .vita import vita_sync_loop
+from .vita_trophy import vita_trophy_loop
 
 log = logging.getLogger("playtime")
 
@@ -51,6 +52,7 @@ async def lifespan(app):
         log.info("vita poller on · ftp %s:%s · account %s",
                  config.VITA_HOST, config.VITA_PORT, config.VITA_ACCOUNT)
         tasks.append(asyncio.create_task(vita_sync_loop()))
+        tasks.append(asyncio.create_task(vita_trophy_loop()))
     try:
         yield
     finally:
@@ -516,6 +518,7 @@ def _game_trophies(platform, npcommids, accounts):
                     info = rarity.get(tid)
                     agg[tid] = {
                         "id": tid,
+                        "platform": it["platform"],
                         "name": it["name"],
                         "desc": it["detail"],
                         "grade": it["grade"],

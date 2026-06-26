@@ -13,6 +13,10 @@ trophy's icon, which may need the console online the first time it's requested.
   is excluded); `key` = `platform:account:titleId`; trophies are keyed by
   `npcommid` (`NPWR…`, the same id PSN uses). Playtime refreshes every ~30s,
   trophies every ~30min and at startup.
+- **`platform`** — which console a record came from. Enum: `ps3` | `psvita` |
+  `3ds`. Present on every playtime and trophy record (Game, session, TrophySet,
+  Trophy, history item). New platforms are added to this list as trackers ship;
+  consumers should treat an unknown value as "other" rather than erroring.
 
 ---
 
@@ -43,7 +47,7 @@ exclusive. Example: `/stats?from=2026-06-22&to=2026-06-23`.
 ```json
 {
   "key": "ps3:Ashe-raddo:BLES01138",
-  "platform": "ps3",
+  "platform": "ps3",            // ps3 | psvita | 3ds
   "account": "Ashe-raddo",
   "titleId": "BLES01138",
   "titleName": "Far Cry 3",
@@ -77,7 +81,7 @@ Per-set trophy summary. **Query (optional):** `account`.
 **TrophySet:**
 ```json
 {
-  "platform": "ps3",
+  "platform": "ps3",            // ps3 | psvita | 3ds
   "account": "Eplring",
   "npcommid": "NPWR00660_00",
   "title": "inFamous",
@@ -115,6 +119,7 @@ All trophies of one game.
 ```json
 {
   "id": 21,
+  "platform": "ps3",            // ps3 | psvita | 3ds
   "name": "Электрожаба",        // null if hidden and not yet earned
   "detail": "…",                 // null if hidden and not yet earned
   "grade": "bronze",             // bronze | silver | gold | platinum
@@ -142,11 +147,13 @@ Remove stored sessions for an account.
 ```
 
 ## POST /ingest
-For future push-based platforms (Switch / Vita / 3DS).
+Push a finished play session from a non-PS3 platform. `platform` is one of the
+enum values (`psvita`, `3ds`, …); HA stamps the time itself, so only `seconds`
+is needed (no timestamps).
 **Body:**
 ```json
-{ "platform": "switch", "account": "nx",
-  "titleId": "0100ABC", "title": "Zelda TOTK", "seconds": 3600 }
+{ "platform": "3ds", "account": "mii",
+  "titleId": "0004000000033500", "title": "Mario Kart 7", "seconds": 3600 }
 ```
 → `{ "ok": true }`
 

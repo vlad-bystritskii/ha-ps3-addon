@@ -511,6 +511,7 @@ def query_trophy_items(platform, account, npcommid):
     return [
         {
             "id": r["trophy_id"],
+            "platform": r["platform"],
             "name": r["name"],
             "detail": r["detail"],
             "grade": r["grade"],
