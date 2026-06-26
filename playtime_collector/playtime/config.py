@@ -1,33 +1,59 @@
 """Configuration.
 
-Reads Home Assistant add-on options (/data/options.json) if present, otherwise
-environment variables, otherwise defaults. The same image therefore runs as a
-HAOS add-on and as a plain script (Docker or local).
+Config is layered, highest priority first:
+  1. the web-UI settings file (/share/playtime/settings.json) — edited from the
+     dashboard Settings / Games pages; lives in the shared, slug-independent
+     location so it survives reinstalls and needs no HA add-on permissions;
+  2. Home Assistant add-on options (/data/options.json) — the minimal set still
+     exposed in the add-on Configuration tab;
+  3. environment variables;
+  4. built-in defaults.
+The same image therefore runs as a HAOS add-on and as a plain script.
 """
 import json
 import os
 from pathlib import Path
 
 OPTIONS_FILE = Path("/data/options.json")
+# Web-UI-managed settings (the convenient config hub). Highest-priority layer.
+SETTINGS_FILE = Path("/share/playtime/settings.json")
 
 
-def load_options():
-    if OPTIONS_FILE.exists():
+def _load_json(path):
+    if path.exists():
         try:
-            return json.loads(OPTIONS_FILE.read_text())
+            return json.loads(path.read_text())
         except (ValueError, OSError):
             return {}
     return {}
 
 
-options = load_options()
+options = _load_json(OPTIONS_FILE)
+settings = _load_json(SETTINGS_FILE)
 
 
 def get(key, env, default):
-    value = options.get(key)
-    if value not in (None, ""):
-        return value
+    # web-UI settings win, then HA add-on options, then env var, then default.
+    for src in (settings, options):
+        value = src.get(key)
+        if value not in (None, ""):
+            return value
     return os.environ.get(env, default)
+
+
+def save_settings(updates):
+    """Merge a dict of option overrides into the web-UI settings file (creating it
+    and its dir). Used by the dashboard Settings / Games pages. Values take effect
+    on the next add-on restart (config is read at startup). Returns the merged dict."""
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    current = _load_json(SETTINGS_FILE)
+    for k, v in (updates or {}).items():
+        if v is None:
+            current.pop(k, None)
+        else:
+            current[k] = v
+    SETTINGS_FILE.write_text(json.dumps(current, indent=2, ensure_ascii=False))
+    return current
 
 
 # Platform identity stamped on rows written by this collector's built-in PS3
@@ -128,21 +154,59 @@ PLAYTIME_SOURCE = str(get("playtime_source", "PLAYTIME_SOURCE", "auto")).strip()
 if PLAYTIME_SOURCE not in ("auto", "webman", "plugin"):
     PLAYTIME_SOURCE = "auto"
 
-# Game-title overrides, maintained by the user in the add-on options. Each entry is
-# "<match>=<replacement>"; <match> is a title id (BCES01585) or an exact title string
-# ("KILLZONE®"). Used to drop trademark glyphs / promo tags the games bake into their
-# own metadata (the XMB hides these too). See titles.fix_title.
-_overrides_raw = get("title_overrides", "TITLE_OVERRIDES", [])
-if isinstance(_overrides_raw, str):
-    _overrides_raw = _overrides_raw.split(";")
-TITLE_OVERRIDES = {}
-for _item in _overrides_raw or []:
-    _text = str(_item)
-    if "=" in _text:
-        _match, _replacement = _text.split("=", 1)
-        _match = _match.strip()
+# Game-title overrides. <match> is a title id (BCES01585) or an exact title string
+# ("KILLZONE®"); the value is the display name to show instead. Used to drop trademark
+# glyphs / promo tags games bake into their metadata, and to rename games from the
+# dashboard Games page. Accepted as a dict {match: replacement} (the web-UI / Games
+# page form) or a list/";"-string of "<match>=<replacement>" (legacy). See titles.fix_title.
+# Built-in defaults (drop trademark glyphs / promo tags games bake into their own
+# metadata). The dashboard Games page / settings.json override and extend these.
+_DEFAULT_TITLE_OVERRIDES = {
+    "BCES01585": "The Last of Us",
+    "The Last of Us™": "The Last of Us",
+    "KILLZONE®": "KILLZONE",
+    "Uncharted: Drake's Fortune™": "Uncharted: Drake's Fortune",
+    "Syndicate™": "Syndicate",
+    "Far Cry® 3": "Far Cry 3",
+    "Resistance 2™": "Resistance 2",
+    "Resistance: Fall of Man™": "Resistance: Fall of Man",
+    "Twisted Metal™": "Twisted Metal",
+    "HEAVY RAIN™": "HEAVY RAIN",
+    "Uncharted 2: Among Thieves™": "Uncharted 2: Among Thieves",
+    "Dante's Inferno™": "Dante's Inferno",
+    "God of War™ III": "God of War III",
+    "God of War: Восхождение™": "God of War: Восхождение",
+    "The Saboteur™": "The Saboteur",
+    "Призы игры God of War™": "Призы игры God of War",
+    "Uncharted 3: Иллюзии Дрейка™": "Uncharted 3: Иллюзии Дрейка",
+    "ICO™": "ICO",
+    "Alice: Madness Returns™": "Alice: Madness Returns",
+    "LittleBigPlanet™3": "LittleBigPlanet 3",
+    "Tom Clancy's Splinter Cell® Blacklist™": "Tom Clancy's Splinter Cell Blacklist",
+    "Gran Turismo®6": "Gran Turismo 6",
+    "GTA IV": "Grand Theft Auto IV",
+    "Wolverine Trophies": "X-Men Origins: Wolverine",
+}
+
+_overrides_raw = get("title_overrides", "TITLE_OVERRIDES", None)
+TITLE_OVERRIDES = dict(_DEFAULT_TITLE_OVERRIDES)
+if _overrides_raw is None:
+    _overrides_raw = {}
+if isinstance(_overrides_raw, dict):
+    for _match, _replacement in _overrides_raw.items():
+        _match = str(_match).strip()
         if _match:
-            TITLE_OVERRIDES[_match] = _replacement.strip()
+            TITLE_OVERRIDES[_match] = str(_replacement).strip()
+else:
+    if isinstance(_overrides_raw, str):
+        _overrides_raw = _overrides_raw.split(";")
+    for _item in _overrides_raw or []:
+        _text = str(_item)
+        if "=" in _text:
+            _match, _replacement = _text.split("=", 1)
+            _match = _match.strip()
+            if _match:
+                TITLE_OVERRIDES[_match] = _replacement.strip()
 
 
 # --- PS Vita (pull over FTP) -------------------------------------------------

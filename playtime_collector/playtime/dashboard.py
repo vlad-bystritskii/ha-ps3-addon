@@ -162,6 +162,17 @@ const PLATS={ps3:{label:'PS3',color:'#5a7bff'},psvita:{label:'VITA',color:'#16c3
  ps4:{label:'PS4',color:'#4a9eff'},ps5:{label:'PS5',color:'#b06bff'},psp:{label:'PSP',color:'#3fbf7f'},
  n3ds:{label:'3DS',color:'#ff5d6c'},swi:{label:'SWITCH',color:'#ff7a3d'}};
 function plat(p){return PLATS[p]||{label:String(p||'').toUpperCase(),color:'#8a8f9c'};}
+/* Inline single-color platform glyphs (currentColor-driven, ~13-16px). Defined once, keyed by glyph family. */
+const PLAT_SVG={
+ ps:'<path d="M8.985 2.596v17.548l3.915 1.261V6.688c0-.69.304-1.151.794-.991.636.181.76.814.76 1.505v5.876c2.441 1.193 4.362-.002 4.362-3.153 0-3.237-1.126-4.675-4.438-5.827-1.307-.448-3.728-1.186-5.393-1.5zm4.656 16.242l6.296-2.275c.715-.258.825-.625.246-.818-.586-.192-1.637-.139-2.357.123l-4.205 1.499V14.98l.24-.085s1.201-.42 2.913-.615c1.696-.18 3.785.029 5.437.661 1.848.601 2.041 1.491 1.576 2.116-.465.624-1.622 1.07-1.622 1.07l-8.769 3.158v-2.447zM1.807 18.95c-1.9-.534-2.207-1.648-1.339-2.29.804-.59 2.171-1.035 2.171-1.035l5.696-2.026v2.311l-4.1 1.469c-.724.26-.835.625-.249.819.587.193 1.637.139 2.36-.121l1.99-.72v2.06c-.122.025-.26.044-.398.06-1.844.302-3.812.144-5.842-.467z"/>',
+ swi:'<path d="M14.176 24h3.674c3.376 0 6.15-2.774 6.15-6.15V6.15C24 2.775 21.226 0 17.85 0H14.13c-.114 0-.2.087-.2.2v23.6c0 .114.115.2.246.2zm2.099-15.224c1.235 0 2.237 1.002 2.237 2.237 0 1.234-1.002 2.237-2.237 2.237-1.235 0-2.237-1.003-2.237-2.237 0-1.235 1.002-2.237 2.237-2.237zM5.876 24h.74c.114 0 .2-.087.2-.2V.2c0-.113-.086-.2-.2-.2H5.83C2.502.057-.137 2.737.005 6.064v11.786C-.137 21.32 2.55 24 5.876 24zm-.74-15.973c-1.797 0-3.255 1.457-3.255 3.254 0 1.798 1.458 3.255 3.255 3.255.072 0 .145-.003.217-.008V8.035a3.31 3.31 0 0 0-.217-.008z"/>',
+ n3ds:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.25" y="2.5" width="17.5" height="8.5" rx="2"/><rect x="3.25" y="13" width="17.5" height="8.5" rx="2"/></g><circle cx="6.6" cy="17.25" r="1.55"/><circle cx="17.4" cy="17.25" r="1.55"/>'};
+/* platform key -> glyph family (PlayStation family shares the PS mark; color still differentiates) */
+const PLAT_GLYPH={ps3:'ps',ps4:'ps',ps5:'ps',psp:'ps',psvita:'ps',vita:'ps',n3ds:'n3ds',swi:'swi'};
+/* Badge inner content for a platform key: inline SVG glyph (currentColor), or the short label as fallback. */
+function platBadge(p,sz){sz=sz||13;const inner=PLAT_GLYPH[p]&&PLAT_SVG[PLAT_GLYPH[p]];const lbl=plat(p).label;
+ if(!inner)return esc(lbl);
+ return '<svg viewBox="0 0 24 24" width="'+sz+'" height="'+sz+'" fill="currentColor" role="img" aria-label="'+esc(lbl)+'" style="display:block;vertical-align:middle;"><title>'+esc(lbl)+'</title>'+inner+'</svg>';}
 function formatH(sec){sec=Math.max(0,Math.round(sec||0));const H=Math.floor(sec/3600),M=Math.round((sec%3600)/60);
  if(H>=1000)return H.toLocaleString()+'h';if(H===0)return (M||0)+'m';if(M===0)return H+'h';return H+'h '+(M<10?'0':'')+M+'m';}
 function ago(iso){if(!iso)return '—';const d=new Date(iso),s=(Date.now()-d.getTime())/1000;
@@ -387,7 +398,7 @@ function gameRowHTML(g,i,withDivider,total){
   +'<div style="flex:1;min-width:0;">'
   +'<div style="font:600 13.5px/1.2 \'Space Grotesk\';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(g.title)+'</div>'
   +'<div style="display:flex;align-items:center;gap:8px;margin-top:5px;">'
-  +'<span style="background:'+pm.color+'1f;color:'+pm.color+';padding:2px 7px;border-radius:6px;font:600 9.5px \'JetBrains Mono\';flex:none;">'+esc(pm.label)+'</span>'
+  +'<span style="display:inline-flex;align-items:center;background:'+pm.color+'1f;color:'+pm.color+';padding:3px 6px;border-radius:6px;flex:none;">'+platBadge(g.platform,13)+'</span>'
   +'<span style="font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Last played '+esc(ago(g.lastPlayed))+'</span></div>'
   +'<div style="display:flex;align-items:center;gap:12px;margin-top:6px;font:600 11px \'JetBrains Mono\';">'
   +'<span style="color:#ffb648;white-space:nowrap;">◆ '+(g.trophies||0)+' trophies</span>'
@@ -456,7 +467,7 @@ function historyItemHTML(it){
    title=esc(it.name);titleColor='var(--accent)';subRest=' · '+esc(it.game||'')+' — '+esc(it.desc||'');
    rightMain=it.rate!=null?(+it.rate).toFixed(1)+'%':'—';rightColor=rr.color;rightSub=rr.label;
    const idx=POP.push({name:it.name,desc:it.desc,pctLabel:rightMain,rarityColor:rr.color,rarityLabel:rr.label,
-     game:it.game,platLabel:pm.label,platColor:pm.color,player:it.playerName,playerColor:it.playerColor,iconUrl:it.iconUrl})-1;
+     game:it.game,platKey:it.platform,platLabel:pm.label,platColor:pm.color,player:it.playerName,playerColor:it.playerColor,iconUrl:it.iconUrl})-1;
    onclick='openTrophyPopup('+idx+')';
  }else{
    icon='<div style="width:44px;height:44px;border-radius:11px;background:color-mix(in oklab, var(--accent) 13%, transparent);border:1px solid color-mix(in oklab, var(--accent) 30%, transparent);display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:0;height:0;border-left:11px solid var(--accent);border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px;"></div></div>';
@@ -469,7 +480,7 @@ function historyItemHTML(it){
   +icon
   +'<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">'
   +'<span style="font:600 14px \'Space Grotesk\';color:'+titleColor+';">'+title+'</span>'
-  +'<span style="background:'+pm.color+'1f;color:'+pm.color+';padding:2px 8px;border-radius:6px;font:600 10px \'JetBrains Mono\';">'+esc(pm.label)+'</span></div>'
+  +'<span style="display:inline-flex;align-items:center;background:'+pm.color+'1f;color:'+pm.color+';padding:3px 7px;border-radius:6px;">'+platBadge(it.platform,14)+'</span></div>'
   +'<div style="font-size:12.5px;color:var(--dim);margin-top:3px;">'+avatarBox(it.playerName,it.account,it.playerColor,16,5,8)+' <span style="color:'+it.playerColor+';font-weight:600;">'+esc(it.playerName)+'</span>'+subRest+'</div></div>'
   +'<div style="display:flex;flex-direction:column;align-items:flex-end;flex:none;line-height:1.25;">'
   +'<span style="font:700 13px \'JetBrains Mono\';color:'+rightColor+';">'+esc(rightMain)+'</span>'
@@ -552,7 +563,7 @@ function gameModalHTML(){
  h+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">'
   +gameIconHTML(state.activeGame?state.activeGame.titleId:'',g.title,pm.color,58,14,17,7,15)
   +'<div style="flex:1;min-width:0;"><div style="font:700 24px \'Space Grotesk\';letter-spacing:-.02em;">'+esc(g.title)+'</div>'
-  +'<div style="margin-top:6px;"><span style="background:'+pm.color+'1f;color:'+pm.color+';padding:3px 9px;border-radius:7px;font:600 11px \'JetBrains Mono\';">'+esc(pm.label)+'</span></div></div>'
+  +'<div style="margin-top:6px;"><span style="display:inline-flex;align-items:center;background:'+pm.color+'1f;color:'+pm.color+';padding:4px 8px;border-radius:7px;">'+platBadge(g.platform,16)+'</span></div></div>'
   +'<button onclick="back()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">✕</button></div>';
  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">';
  tiles.forEach(([l,v])=>{h+='<div style="background:var(--surface2,#1b1e27);border:1px solid var(--border);border-radius:14px;padding:15px 17px;">'
@@ -576,7 +587,7 @@ function gameModalHTML(){
  if(tro.length){h+='<div style="display:flex;flex-direction:column;gap:2px;">';
    tro.forEach(t=>{const rr=rarity(t.rate);
      const idx=POP.push({name:t.name,desc:t.desc,pctLabel:t.rate!=null?(+t.rate).toFixed(1)+'%':'—',
-       rarityColor:rr.color,rarityLabel:rr.label,game:g.title,platLabel:pm.label,platColor:pm.color,
+       rarityColor:rr.color,rarityLabel:rr.label,game:g.title,platKey:g.platform,platLabel:pm.label,platColor:pm.color,
        player:'',playerColor:'var(--dim)',iconUrl:t.iconUrl})-1;
      h+='<div onclick="openTrophyPopup('+idx+')" style="display:flex;align-items:center;gap:13px;padding:11px 6px;margin:0 -6px;border-bottom:1px solid var(--border,rgba(255,255,255,.06));cursor:pointer;border-radius:10px;">'
       +'<div style="position:relative;overflow:hidden;width:42px;height:42px;border-radius:11px;background:'+rr.color+'1a;border:1px solid '+rr.color+'40;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:13px;height:13px;background:'+rr.color+';transform:rotate(45deg);border-radius:3px;"></div>'+trophyIconImg(t.iconUrl)+'</div>'
@@ -604,7 +615,7 @@ function trophyPopupHTML(t){
   +'<div style="font-size:13px;color:var(--dim);margin-top:14px;line-height:1.5;">'+esc(t.desc||'')+'</div>'
   +'<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--dim);flex-wrap:wrap;">'
   +'<span style="font-weight:600;color:var(--text);">'+esc(t.game||'')+'</span>'
-  +'<span style="background:'+t.platColor+'1f;color:'+t.platColor+';padding:2px 8px;border-radius:6px;font:600 10px \'JetBrains Mono\';">'+esc(t.platLabel)+'</span>'
+  +'<span style="display:inline-flex;align-items:center;background:'+t.platColor+'1f;color:'+t.platColor+';padding:3px 7px;border-radius:6px;">'+platBadge(t.platKey,14)+'</span>'
   +(t.player?'<span style="color:var(--faint);">·</span><span style="color:'+t.playerColor+';font-weight:600;">'+esc(t.player)+'</span>':'')+'</div></div></div>';
 }
 

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Playtime · Games</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>🎮</text></svg>">
+<style>
+:root{--bg:#080b14;--panel:#101827;--panel2:#0c1320;--line:#1d2b45;--accent:#29c6e6;
+--blue:#2a9df4;--white:#eef4ff;--dim:#8499b8;--ok:#37e08a;--err:#ff6b81}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 500px at 50% -200px,#13203a,transparent),var(--bg);
+color:var(--white);font:15px/1.45 -apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:18px}
+.head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:16px;
+background:linear-gradient(120deg,#16305a,#0e1c33);border:1px solid var(--line)}
+.head .logo{font-size:30px}.head h1{margin:0;font-size:24px;letter-spacing:.5px;flex:1}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.nav a{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+padding:7px 14px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none}
+.nav a:hover{color:var(--white);border-color:var(--accent)}.nav a.on{color:var(--accent);border-color:var(--accent)}
+h2{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin:24px 0 12px;font-weight:700;
+font-family:ui-monospace,Menlo,Consolas,monospace}
+.tools{display:flex;gap:8px;align-items:center;margin:0 0 14px}
+.search{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+color:var(--white);padding:10px 12px;font:inherit}
+.search:focus{outline:none;border-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.grow{display:flex;align-items:center;gap:12px}
+.cover{width:46px;height:46px;border-radius:9px;flex:none;object-fit:cover;background:var(--panel2);
+border:1px solid var(--line)}
+.fallback{width:46px;height:46px;border-radius:9px;flex:none;display:flex;align-items:center;
+justify-content:center;background:var(--panel2);border:1px solid var(--line);font-size:20px}
+.meta{flex:1;min-width:0}
+.meta .nm{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta .sub{display:flex;align-items:center;gap:8px;margin-top:3px}
+.meta .tid{color:#5a6c8a;font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbadge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.5px;padding:2px 7px;
+border-radius:6px;text-transform:uppercase;background:#22324f;color:#9fc2ff;flex:none}
+.pbadge.p-ps3{background:#13345e;color:#7fb6ff}.pbadge.p-psvita{background:#3a2350;color:#c69bff}
+.edit{display:flex;gap:8px;align-items:center;margin-top:10px}
+.edit input{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+color:var(--white);padding:9px 11px;font:inherit}
+.edit input:focus{outline:none;border-color:var(--accent)}
+.btn{background:linear-gradient(120deg,var(--blue),var(--accent));color:#06121f;border:0;
+border-radius:10px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.sm{padding:8px 12px;font-size:12px}
+.btn[disabled]{opacity:.5;cursor:default}
+.tick{color:var(--ok);font-weight:800;font-size:16px;opacity:0;transition:opacity .2s;flex:none;width:14px}
+.tick.show{opacity:1}
+.rowmsg{font-size:11px;min-height:14px;margin-top:6px;color:#5a6c8a}
+.rowmsg.ok{color:var(--ok)}.rowmsg.err{color:var(--err)}
+.msg{font-size:13px;font-weight:600;min-height:18px;margin:4px 0}
+.msg.err{color:var(--err)}.msg.ok{color:var(--ok)}.msg.warn{color:#e7d96a}
+.empty{color:#5a6c8a;font-size:13px;padding:10px 2px}
+.foot{color:var(--dim);font-size:11px;text-align:center;margin:24px 0 8px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><div class="logo">🎮</div><h1>Games</h1></div>
+  <div class="nav"><a href="./">Dashboard</a><a href="./people">People</a><a class="on" href="overrides">Games</a><a href="./config">Settings</a></div>
+
+  <p style="color:var(--dim);font-size:13px;margin:4px 0 14px">
+    Give each game a tidy display name. Leave a field empty to use the original title.
+    Renames apply after the add-on restarts.
+  </p>
+
+  <div class="tools">
+    <input id="search" class="search" placeholder="Filter games…" autocomplete="off">
+  </div>
+
+  <div id="status" class="msg">Loading games…</div>
+  <div id="list"></div>
+
+  <div class="foot">Covers are pulled live from each console; missing art falls back to a placeholder.</div>
+</div>
+
+<script>
+// Relative URLs so this works both on the direct port and behind HA ingress.
+const GAMES_URL = "games-list", OVERRIDE_URL = "title-override";
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const PLABEL = {ps3:"PS3", psvita:"Vita"};
+const plabel = p => PLABEL[p] || String(p||"").toUpperCase();
+
+let GAMES = [];
+
+async function getGames(){
+  const r = await fetch(GAMES_URL, {headers:{"Accept":"application/json"}});
+  if (r.status === 404) return [];                 // backend not live yet — treat as empty
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const t = await r.text();
+  const body = t ? JSON.parse(t) : {};
+  return Array.isArray(body) ? body : (body.games || []);
+}
+
+function renderGame(g){
+  const tid = esc(g.titleId);
+  const plat = esc(g.platform || "");
+  const title = esc(g.title || g.titleId || "Unknown");
+  const override = g.override == null ? "" : esc(g.override);
+  return `<div class="card" data-tid="${tid}" data-title="${title.toLowerCase()}">
+    <div class="grow">
+      <img class="cover" src="game-icon/${encodeURIComponent(g.titleId)}" alt=""
+           onerror="this.outerHTML='&lt;div class=&quot;fallback&quot;&gt;🎮&lt;/div&gt;'">
+      <div class="meta">
+        <div class="nm">${override || title}</div>
+        <div class="sub">
+          ${plat ? `<span class="pbadge p-${plat}">${esc(plabel(plat))}</span>` : ""}
+          <span class="tid">${tid}</span>
+        </div>
+      </div>
+    </div>
+    <div class="edit">
+      <input class="ov" value="${override}" placeholder="${title}" autocomplete="off"
+             aria-label="Display name for ${title}">
+      <button class="btn sm save" type="button">Save</button>
+      <span class="tick">✓</span>
+    </div>
+    <div class="rowmsg"></div>
+  </div>`;
+}
+
+async function saveOverride(card){
+  const tid = card.dataset.tid;
+  const input = card.querySelector(".ov");
+  const btn = card.querySelector(".save");
+  const tick = card.querySelector(".tick");
+  const rowmsg = card.querySelector(".rowmsg");
+  const name = input.value.trim();
+  btn.disabled = true; tick.classList.remove("show");
+  rowmsg.className = "rowmsg"; rowmsg.textContent = "Saving…";
+  try {
+    const r = await fetch(OVERRIDE_URL, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({titleId: tid, name}),   // empty name clears the override
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    let body = {}; try { body = await r.json(); } catch (_) {}
+    // Reflect the saved value in the heading.
+    const nm = card.querySelector(".nm");
+    nm.textContent = name || input.placeholder;
+    tick.classList.add("show");
+    rowmsg.className = "rowmsg ok";
+    rowmsg.textContent = body.restart_required === false
+      ? (name ? "Saved." : "Override cleared.")
+      : "Applies after restart.";
+    setTimeout(() => tick.classList.remove("show"), 2500);
+  } catch (e) {
+    rowmsg.className = "rowmsg err";
+    rowmsg.textContent = "Save failed: " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function wire(){
+  $("list").querySelectorAll(".card").forEach(card => {
+    const input = card.querySelector(".ov");
+    const btn = card.querySelector(".save");
+    btn.addEventListener("click", () => saveOverride(card));
+    // Save on blur only when the value actually changed.
+    input.dataset.orig = input.value;
+    input.addEventListener("blur", () => {
+      if (input.value.trim() !== (input.dataset.orig || "").trim()) {
+        input.dataset.orig = input.value;
+        saveOverride(card);
+      }
+    });
+    input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); input.blur(); } });
+  });
+}
+
+async function refresh(){
+  const st = $("status");
+  try {
+    GAMES = await getGames();
+    if (!GAMES.length) {
+      st.className = "msg"; st.style.display = "";
+      st.textContent = "No games tracked yet — play something and check back.";
+      $("list").innerHTML = "";
+      return;
+    }
+    st.style.display = "none";
+    $("list").innerHTML = GAMES.map(renderGame).join("");
+    wire();
+  } catch (e) {
+    st.className = "msg err"; st.style.display = "";
+    st.textContent = "Could not load games: " + e.message;
+  }
+}
+
+$("search").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  let shown = 0;
+  $("list").querySelectorAll(".card").forEach(card => {
+    const hit = !q || card.dataset.title.includes(q) || card.dataset.tid.toLowerCase().includes(q);
+    card.style.display = hit ? "" : "none";
+    if (hit) shown++;
+  });
+  let none = $("nomatch");
+  if (!shown && q) {
+    if (!none) { none = document.createElement("div"); none.id = "nomatch"; none.className = "empty"; $("list").appendChild(none); }
+    none.textContent = "No games match “" + q + "”.";
+  } else if (none) { none.remove(); }
+});
+
+refresh();
+</script>
+</body>
+</html>

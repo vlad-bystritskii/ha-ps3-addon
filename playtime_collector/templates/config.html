@@ -19,21 +19,48 @@ background:linear-gradient(120deg,#16305a,#0e1c33);border:1px solid var(--line)}
 .nav a{background:var(--panel);border:1px solid var(--line);border-radius:10px;
 padding:7px 14px;font-size:13px;font-weight:600;color:var(--dim);text-decoration:none}
 .nav a:hover{color:var(--white);border-color:var(--accent)}.nav a.on{color:var(--accent);border-color:var(--accent)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 6px}
+h2{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin:0 0 14px;font-weight:700;
+font-family:ui-monospace,Menlo,Consolas,monospace}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 6px;margin-bottom:14px}
 .fld{margin-bottom:16px}
 .fld label{display:block;font-size:12px;color:var(--dim);text-transform:uppercase;
 letter-spacing:.6px;font-weight:700;margin-bottom:6px}
 .fld .hint{color:#5a6c8a;font-size:11px;margin-top:5px;font-weight:400;text-transform:none;letter-spacing:0}
+.fld code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11px}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row .fld{flex:1;min-width:160px}
 input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);
 border-radius:10px;color:var(--white);padding:10px 12px;font:inherit}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
-textarea{min-height:140px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.sec{display:flex;flex-direction:column;gap:10px}
+.reveal{display:flex;gap:8px}.reveal input{flex:1}
 .btn{background:linear-gradient(120deg,var(--blue),var(--accent));color:#06121f;border:0;
 border-radius:10px;padding:11px 22px;font-weight:800;font-size:14px;cursor:pointer}
 .btn[disabled]{opacity:.5;cursor:default}
-.bar{display:flex;align-items:center;gap:14px;margin:8px 0 18px}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--dim);padding:9px 14px;font-weight:700;white-space:nowrap}
+.btn.ghost:hover{color:var(--white);border-color:var(--accent)}
+.btn.sm{padding:8px 12px;font-size:12px;font-weight:700}
+.cta{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
+border-radius:14px;padding:14px 16px;margin-bottom:14px;text-decoration:none;color:inherit}
+.cta:hover{border-color:var(--accent)}.cta .ico{font-size:24px}
+.cta .t{flex:1}.cta .t b{display:block;font-size:15px}.cta .t span{color:var(--dim);font-size:12px}
+.cta .go{color:var(--accent);font-weight:800;font-size:20px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:14px}
+details>summary{list-style:none;cursor:pointer;padding:16px 18px;font-size:12px;color:var(--dim);
+text-transform:uppercase;letter-spacing:.8px;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"▸";float:right;color:var(--accent)}
+details[open]>summary::after{content:"▾"}
+details .body{padding:0 18px 6px}
+.bar{display:flex;align-items:center;gap:14px;margin:4px 0 18px;position:sticky;bottom:0;
+background:linear-gradient(0deg,var(--bg) 60%,transparent);padding:10px 0}
 .msg{font-size:13px;font-weight:600;min-height:18px}
 .msg.ok{color:var(--ok)}.msg.err{color:var(--err)}.msg.warn{color:#e7d96a}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(40px);
+background:var(--panel);border:1px solid var(--ok);color:var(--ok);border-radius:12px;
+padding:12px 20px;font-weight:700;font-size:14px;opacity:0;pointer-events:none;
+transition:opacity .25s,transform .25s;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:50;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast small{display:block;color:var(--dim);font-weight:500;font-size:11px;margin-top:2px}
 .foot{color:var(--dim);font-size:11px;text-align:center;margin:24px 0 8px}
 a{color:var(--accent)}
 </style>
@@ -41,58 +68,137 @@ a{color:var(--accent)}
 <body>
 <div class="wrap">
   <div class="head"><div class="logo">⚙️</div><h1>Settings</h1></div>
-  <div class="nav"><a href="./">Dashboard</a><a href="./people">People</a><a class="on" href="./config">Settings</a></div>
+  <div class="nav"><a href="./">Dashboard</a><a href="./people">People</a><a href="overrides">Games</a><a class="on" href="./config">Settings</a></div>
 
   <div id="loadmsg" class="msg" style="margin:8px 0 14px">Loading current settings…</div>
 
-  <form id="form" class="card" style="display:none">
-    <div class="fld">
-      <label for="ps3_host">PS3 host</label>
-      <input id="ps3_host" name="ps3_host" placeholder="192.168.1.72" autocomplete="off">
-      <div class="hint">IP address of the PS3 running webMAN MOD.</div>
+  <form id="form" style="display:none">
+
+    <a class="cta" href="overrides">
+      <div class="ico">🎮</div>
+      <div class="t"><b>Rename games</b><span>Give your library tidy display names, with cover art.</span></div>
+      <div class="go">→</div>
+    </a>
+
+    <div class="card">
+      <h2>Connection</h2>
+      <div class="sec">
+        <div class="fld">
+          <label for="ps3_host">PS3 host</label>
+          <input id="ps3_host" name="ps3_host" placeholder="192.168.1.72" autocomplete="off">
+          <div class="hint">IP address of the PS3 running webMAN MOD.</div>
+        </div>
+        <div class="row">
+          <div class="fld">
+            <label for="vita_host">Vita host</label>
+            <input id="vita_host" name="vita_host" placeholder="192.168.1.80" autocomplete="off">
+            <div class="hint">IP of the PS Vita running the playtime plugin.</div>
+          </div>
+          <div class="fld" style="max-width:140px">
+            <label for="vita_port">Vita port</label>
+            <input id="vita_port" name="vita_port" type="number" min="1" max="65535" placeholder="9090">
+          </div>
+        </div>
+        <div class="fld">
+          <label for="vita_account">Vita account label</label>
+          <input id="vita_account" name="vita_account" placeholder="vita" autocomplete="off">
+          <div class="hint">Profile name to attribute Vita playtime to.</div>
+        </div>
+        <div class="fld">
+          <label for="auth_token">API auth token</label>
+          <div class="reveal">
+            <input id="auth_token" name="auth_token" type="password" autocomplete="new-password">
+            <button type="button" class="btn ghost sm" data-reveal="auth_token">Show</button>
+          </div>
+          <div class="hint">If set, required in the <code>X-Auth-Token</code> header. Empty = open on LAN.</div>
+        </div>
+        <div class="fld">
+          <label for="psn_npsso">PSN NPSSO token</label>
+          <div class="reveal">
+            <input id="psn_npsso" name="psn_npsso" type="password" autocomplete="new-password">
+            <button type="button" class="btn ghost sm" data-reveal="psn_npsso">Show</button>
+          </div>
+          <div class="hint">Optional — enriches trophies with global PSN rarity.</div>
+        </div>
+      </div>
     </div>
-    <div class="fld">
-      <label for="playtime_source">Playtime source</label>
-      <select id="playtime_source" name="playtime_source">
-        <option value="auto">auto — plugin log when present, else LAN polling</option>
-        <option value="webman">webman — LAN polling only</option>
-        <option value="plugin">plugin — on-console plugin log only</option>
-      </select>
+
+    <div class="card">
+      <h2>Behavior</h2>
+      <div class="sec">
+        <div class="fld">
+          <label for="playtime_source">Playtime source</label>
+          <select id="playtime_source" name="playtime_source">
+            <option value="auto">auto — plugin log when present, else LAN polling</option>
+            <option value="webman">webman — LAN polling only</option>
+            <option value="plugin">plugin — on-console plugin log only</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="account">Fallback account label</label>
+          <input id="account" name="account" placeholder="ps3" autocomplete="off">
+          <div class="hint">Used when a console profile can't be resolved.</div>
+        </div>
+        <div class="fld">
+          <label for="ignore_accounts">Ignored accounts</label>
+          <input id="ignore_accounts" name="ignore_accounts" placeholder="Vlad, ps3-tech" autocomplete="off">
+          <div class="hint">Comma-separated profiles to skip (e.g. technical accounts).</div>
+        </div>
+        <div class="fld">
+          <label for="vita_ignore_titles">Ignored Vita titles</label>
+          <input id="vita_ignore_titles" name="vita_ignore_titles" placeholder="LiveArea, Settings" autocomplete="off">
+          <div class="hint">Comma-separated Vita title ids or names to exclude from tracking.</div>
+        </div>
+      </div>
     </div>
-    <div class="fld">
-      <label for="account">Fallback account label</label>
-      <input id="account" name="account" placeholder="ps3" autocomplete="off">
-      <div class="hint">Used when a console profile can't be resolved.</div>
+
+    <div class="card">
+      <h2>Rarity donors</h2>
+      <div class="sec">
+        <div class="fld">
+          <label for="rarity_accounts">Donor PSN usernames</label>
+          <input id="rarity_accounts" name="rarity_accounts" placeholder="trophyhunter1, platgod" autocomplete="off">
+          <div class="hint">PSN usernames of top trophy hunters to source rarity through. Comma-separated.</div>
+        </div>
+      </div>
     </div>
-    <div class="fld">
-      <label for="ignore_accounts">Ignored accounts</label>
-      <input id="ignore_accounts" name="ignore_accounts" placeholder="Vlad" autocomplete="off">
-      <div class="hint">Comma-separated profiles to skip (e.g. technical accounts).</div>
-    </div>
-    <div class="fld">
-      <label for="poll_interval">Poll interval (s)</label>
-      <input id="poll_interval" name="poll_interval" type="number" min="5" placeholder="30">
-    </div>
-    <div class="fld">
-      <label for="trophy_interval">Trophy interval (s)</label>
-      <input id="trophy_interval" name="trophy_interval" type="number" min="60" placeholder="1800">
-    </div>
-    <div class="fld">
-      <label for="auth_token">API auth token</label>
-      <input id="auth_token" name="auth_token" type="password" autocomplete="new-password">
-      <div class="hint">If set, required in the <code>X-Auth-Token</code> header. Empty = open on LAN.</div>
-    </div>
-    <div class="fld">
-      <label for="psn_npsso">PSN NPSSO token</label>
-      <input id="psn_npsso" name="psn_npsso" type="password" autocomplete="new-password">
-      <div class="hint">Optional — enriches trophies with global PSN rarity.</div>
-    </div>
-    <div class="fld">
-      <label for="title_overrides">Title overrides</label>
-      <textarea id="title_overrides" name="title_overrides" spellcheck="false"
-        placeholder="BCES01585=The Last of Us&#10;KILLZONE®=KILLZONE"></textarea>
-      <div class="hint">One per line, <code>match=replacement</code>. Match is a title id or exact title.</div>
-    </div>
+
+    <details>
+      <summary>Advanced · intervals (seconds)</summary>
+      <div class="body">
+        <div class="row">
+          <div class="fld">
+            <label for="poll_interval">Poll interval</label>
+            <input id="poll_interval" name="poll_interval" type="number" min="5" placeholder="30">
+          </div>
+          <div class="fld">
+            <label for="trophy_interval">Trophy interval</label>
+            <input id="trophy_interval" name="trophy_interval" type="number" min="60" placeholder="1800">
+          </div>
+        </div>
+        <div class="row">
+          <div class="fld">
+            <label for="plugin_sync_interval">Plugin sync interval</label>
+            <input id="plugin_sync_interval" name="plugin_sync_interval" type="number" min="10" placeholder="60">
+          </div>
+          <div class="fld">
+            <label for="rarity_interval">Rarity interval</label>
+            <input id="rarity_interval" name="rarity_interval" type="number" min="60" placeholder="3600">
+          </div>
+        </div>
+        <div class="row">
+          <div class="fld">
+            <label for="summary_interval">Summary interval</label>
+            <input id="summary_interval" name="summary_interval" type="number" min="60" placeholder="3600">
+          </div>
+          <div class="fld">
+            <label for="vita_sync_interval">Vita sync interval</label>
+            <input id="vita_sync_interval" name="vita_sync_interval" type="number" min="10" placeholder="60">
+          </div>
+        </div>
+      </div>
+    </details>
+
     <div class="bar">
       <button id="save" class="btn" type="submit">Save settings</button>
       <span id="msg" class="msg"></span>
@@ -102,42 +208,80 @@ a{color:var(--accent)}
   <div class="foot">Changes are stored as add-on options; some take effect after the add-on restarts.</div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script>
 // Relative URLs so this works both on the direct port and behind HA ingress.
 const SETTINGS_URL = "settings";
 const $ = id => document.getElementById(id);
-const FIELDS = ["ps3_host","playtime_source","account","ignore_accounts",
-                "poll_interval","trophy_interval","auth_token","psn_npsso"];
+
+// Plain scalar string/number fields (sent as-is, trimmed).
+const TEXT_FIELDS = ["ps3_host","vita_host","vita_account","playtime_source","account",
+                     "auth_token","psn_npsso"];
+// Integer fields.
+const NUM_FIELDS  = ["vita_port","poll_interval","trophy_interval","plugin_sync_interval",
+                     "rarity_interval","summary_interval","vita_sync_interval"];
+// Comma <-> list fields.
+const LIST_FIELDS = ["ignore_accounts","vita_ignore_titles","rarity_accounts"];
 
 function fill(cfg){
   cfg = cfg || {};
-  FIELDS.forEach(k => { if (k in cfg && cfg[k] != null) $(k).value = cfg[k]; });
-  const ov = cfg.title_overrides;
-  if (Array.isArray(ov)) $("title_overrides").value = ov.join("\n");
-  else if (typeof ov === "string") $("title_overrides").value = ov.replace(/;/g, "\n");
+  TEXT_FIELDS.forEach(k => { if (cfg[k] != null) $(k).value = cfg[k]; });
+  NUM_FIELDS.forEach(k => { if (cfg[k] != null) $(k).value = cfg[k]; });
+  LIST_FIELDS.forEach(k => {
+    const v = cfg[k];
+    if (Array.isArray(v)) $(k).value = v.join(", ");
+    else if (typeof v === "string") $(k).value = v;
+  });
 }
 
 function collect(){
   const out = {};
-  FIELDS.forEach(k => { out[k] = $(k).value.trim(); });
-  out.poll_interval = parseInt(out.poll_interval, 10) || undefined;
-  out.trophy_interval = parseInt(out.trophy_interval, 10) || undefined;
-  out.title_overrides = $("title_overrides").value
-    .split("\n").map(s => s.trim()).filter(s => s.includes("="));
+  // Send all loaded values back so masked secrets are never wiped accidentally;
+  // an explicitly cleared field IS sent as "" so the user can intentionally remove it.
+  TEXT_FIELDS.forEach(k => { out[k] = $(k).value.trim(); });
+  NUM_FIELDS.forEach(k => {
+    const raw = $(k).value.trim();
+    if (raw === "") return;                 // leave unset rather than 0
+    const n = parseInt(raw, 10);
+    if (!Number.isNaN(n)) out[k] = n;
+  });
+  LIST_FIELDS.forEach(k => {
+    out[k] = $(k).value.split(",").map(s => s.trim()).filter(Boolean);
+  });
   return out;
+}
+
+// Reveal / hide masked secrets.
+document.querySelectorAll("[data-reveal]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const f = $(btn.dataset.reveal);
+    const show = f.type === "password";
+    f.type = show ? "text" : "password";
+    btn.textContent = show ? "Hide" : "Show";
+  });
+});
+
+function showToast(text){
+  const t = $("toast");
+  t.innerHTML = text;
+  t.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("show"), 3500);
 }
 
 async function load(){
   try {
     const r = await fetch(SETTINGS_URL, {headers: {"Accept": "application/json"}});
-    if (r.status === 404) { // backend endpoint not live yet — start from a blank form
+    if (r.status === 404) {       // backend endpoint not live yet — start from a blank form
       $("loadmsg").textContent = "Settings API not available yet — editing a blank form (not saved until backend is live).";
       $("loadmsg").className = "msg warn";
       $("form").style.display = "block";
       return;
     }
     if (!r.ok) throw new Error("HTTP " + r.status);
-    fill(await r.json());
+    const body = await r.json();
+    fill((body && body.settings) ? body.settings : body);
     $("loadmsg").style.display = "none";
     $("form").style.display = "block";
   } catch (e) {
@@ -162,8 +306,13 @@ $("form").addEventListener("submit", async ev => {
     let body = {};
     try { body = await r.json(); } catch (_) {}
     msg.className = "msg ok";
-    msg.textContent = body.restart_required === false
-      ? "Saved." : "Saved — restart the add-on to apply.";
+    if (body.restart_required === false) {
+      msg.textContent = "Saved.";
+      showToast("Settings saved ✓");
+    } else {
+      msg.textContent = "Saved — restart the add-on to apply.";
+      showToast("Settings saved ✓<small>Restart the add-on to apply</small>");
+    }
   } catch (e) {
     msg.className = "msg err";
     msg.textContent = "Save failed: " + e.message;

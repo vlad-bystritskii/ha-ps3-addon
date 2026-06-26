@@ -831,99 +831,134 @@ def links_delete(
 
 
 # ---- settings (in-app config editor) ---------------------------------------
-# Mirrors the add-on options the front-end Settings page (/config) edits. Open,
-# like the page that consumes it. Option names/types match config.yaml's schema.
+# The web UI is the settings hub: these read/write the web-managed layer via
+# config.save_settings (writes /share/playtime/settings.json), which the layered
+# config reads at startup. Open, like the page (/config) that consumes them.
+# Changes take effect on the next add-on restart.
 
-# The add-on option keys this editor exposes (in config.yaml's `schema`).
-_SETTING_KEYS = [
-    "ps3_host", "playtime_source", "account", "ignore_accounts",
-    "poll_interval", "trophy_interval", "auth_token", "psn_npsso",
-    "title_overrides",
+# Int-typed settings (coerced on save).
+_SETTING_INT_KEYS = [
+    "vita_port", "poll_interval", "trophy_interval", "plugin_sync_interval",
+    "rarity_interval", "summary_interval", "vita_sync_interval",
 ]
+# List-typed settings (accept a JSON list or comma-separated string; stored as a list).
+_SETTING_LIST_KEYS = ["ignore_accounts", "rarity_accounts", "vita_ignore_titles"]
+# Plain string settings (stored as-is).
+_SETTING_STR_KEYS = [
+    "ps3_host", "vita_host", "vita_account", "auth_token", "psn_npsso",
+    "account", "playtime_source",
+]
+_SETTING_KEYS = _SETTING_STR_KEYS + _SETTING_INT_KEYS + _SETTING_LIST_KEYS
+
+
+def _as_list(value):
+    """Normalise a settings value into a list: a JSON list stays a list (stringified,
+    trimmed, blanks dropped); a comma-separated string is split the same way."""
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return [v.strip() for v in str(value or "").split(",") if v.strip()]
 
 
 @app.get("/settings")
 def settings_get():
-    """Current effective add-on options, as the Settings page expects them."""
+    """Current effective values of the web-managed settings, for the Settings form.
+    Returns {settings: {key: value, ...}}; list settings are returned as lists."""
     return {
-        "ps3_host": config.PS3_HOST,
-        "playtime_source": config.PLAYTIME_SOURCE,
-        "account": config.ACCOUNT,
-        # schema type is `str` (comma-separated); config parsed it into a list.
-        "ignore_accounts": ", ".join(config.IGNORE_ACCOUNTS),
-        "poll_interval": config.POLL_INTERVAL,
-        "trophy_interval": config.TROPHY_INTERVAL,
-        "auth_token": config.AUTH_TOKEN,
-        "psn_npsso": config.PSN_NPSSO,
-        # schema type is `list(str)`; config parsed it into a {match: replacement} map.
-        "title_overrides": ["%s=%s" % (k, v) for k, v in config.TITLE_OVERRIDES.items()],
+        "settings": {
+            "ps3_host": config.PS3_HOST,
+            "vita_host": config.VITA_HOST,
+            "vita_port": config.VITA_PORT,
+            "vita_account": config.VITA_ACCOUNT,
+            "vita_ignore_titles": list(config.VITA_IGNORE_TITLES),
+            "auth_token": config.AUTH_TOKEN,
+            "psn_npsso": config.PSN_NPSSO,
+            "account": config.ACCOUNT,
+            "playtime_source": config.PLAYTIME_SOURCE,
+            "ignore_accounts": list(config.IGNORE_ACCOUNTS),
+            "rarity_accounts": list(config.RARITY_ACCOUNTS),
+            "poll_interval": config.POLL_INTERVAL,
+            "trophy_interval": config.TROPHY_INTERVAL,
+            "plugin_sync_interval": config.PLUGIN_SYNC_INTERVAL,
+            "rarity_interval": config.RARITY_INTERVAL,
+            "summary_interval": config.SUMMARY_INTERVAL,
+            "vita_sync_interval": config.VITA_SYNC_INTERVAL,
+        }
     }
-
-
-def _options_from_body(body):
-    """Pick only known option keys from the posted JSON (drops anything else)."""
-    opts = {}
-    for key in _SETTING_KEYS:
-        if key in body and body[key] is not None:
-            opts[key] = body[key]
-    return opts
-
-
-def _write_options_file(opts):
-    """Persist options by merging into /data/options.json (the file config.py
-    reads on startup), preserving any keys this editor doesn't manage."""
-    path = config.OPTIONS_FILE
-    current = {}
-    if path.exists():
-        try:
-            current = json.loads(path.read_text())
-        except (ValueError, OSError):
-            current = {}
-    current.update(opts)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(current, indent=2))
 
 
 @app.post("/settings")
 async def settings_save(request: Request):
-    """Persist edited add-on options. Best-effort dual path, no privilege escalation:
-
-    1. If a Supervisor token is present (env SUPERVISOR_TOKEN), try the Supervisor
-       self-options API so HAOS stores them durably.
-    2. On any failure (no token, 403 without hassio_api, network error) fall back
-       to writing /data/options.json directly.
-
-    NOTE: truly HAOS-persistent saving (surviving an add-on rebuild, editable from
-    the add-on's own Configuration tab) needs `hassio_api: true` +
-    `hassio_role: manager` in config.yaml. That is intentionally NOT added here —
-    it would be a silent privilege escalation; the Supervisor call is best-effort.
-
-    Config is read at process startup, so applied changes need an add-on restart.
-    """
+    """Persist any subset of the web-managed settings via config.save_settings
+    (writes settings.json). Int fields are coerced to int; list fields accept a
+    JSON list or a comma-separated string and are stored as lists. Other keys are
+    ignored. Changes apply on the next add-on restart."""
     body = await request.json()
-    opts = _options_from_body(body)
+    updates = {}
+    for key in _SETTING_KEYS:
+        if key not in body:
+            continue
+        value = body[key]
+        if key in _SETTING_INT_KEYS:
+            try:
+                updates[key] = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="%s must be an integer" % key)
+        elif key in _SETTING_LIST_KEYS:
+            updates[key] = _as_list(value)
+        else:
+            updates[key] = value
+    config.save_settings(updates)
+    return {"ok": True, "restart_required": True}
 
-    persisted = None
-    token = os.environ.get("SUPERVISOR_TOKEN")
-    if token:
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    "http://supervisor/addons/self/options",
-                    json={"options": opts},
-                    headers={"Authorization": "Bearer " + token},
-                    timeout=10.0,
-                )
-            if resp.status_code < 400:
-                persisted = "supervisor"
-        except (httpx.HTTPError, OSError):
-            persisted = None
 
-    if persisted is None:
-        _write_options_file(opts)
-        persisted = "file"
+# ---- game renaming (title overrides) ---------------------------------------
 
-    return {"ok": True, "persisted": persisted, "restart_required": True}
+@app.get("/games-list")
+def games_list():
+    """Every distinct game in the DB, for the rename page. Returns
+    {games: [{titleId, platform, title, override}]} sorted by title; `title` is the
+    resolved display name currently shown, `override` the current per-title override."""
+    seen = {}
+    for row in db.totals():
+        key = (row["platform"], row["title_id"])
+        if key not in seen or (not seen[key]["title"] and row["title"]):
+            seen[key] = {"platform": row["platform"], "title_id": row["title_id"],
+                         "title": row["title"]}
+    games = [
+        {
+            "titleId": g["title_id"],
+            "platform": g["platform"],
+            "title": g["title"],
+            "override": config.TITLE_OVERRIDES.get(g["title_id"], ""),
+        }
+        for g in seen.values()
+    ]
+    games.sort(key=lambda g: (g["title"] or "").lower())
+    return {"games": games}
+
+
+@app.post("/title-override")
+async def title_override(request: Request):
+    """Body {titleId, name}: set (or, with a blank name, remove) the per-title
+    override for titleId, then persist the whole title_overrides map as a dict via
+    config.save_settings. Applies on the next add-on restart."""
+    body = await request.json()
+    title_id = str(body.get("titleId", "")).strip()
+    if not title_id:
+        raise HTTPException(status_code=400, detail="titleId required")
+    name = str(body.get("name", "")).strip()
+    overrides = dict(config.TITLE_OVERRIDES)
+    if name:
+        overrides[title_id] = name
+    else:
+        overrides.pop(title_id, None)
+    config.save_settings({"title_overrides": overrides})
+    return {"ok": True, "restart_required": True}
+
+
+@app.get("/overrides", response_class=HTMLResponse)
+def overrides_page():
+    return _serve_template("games.html")
 
 
 @app.post("/ingest")
